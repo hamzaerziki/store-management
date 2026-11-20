@@ -1,0 +1,26 @@
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS brand VARCHAR(100) DEFAULT 'Safari Import';
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS code VARCHAR(50);
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS area_m2 NUMERIC(10,2);
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id);
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS initial_open_date DATE;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS forecast_open_date DATE;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS actual_open_date DATE;
+ALTER TABLE stores ADD COLUMN IF NOT EXISTS phase VARCHAR(40) DEFAULT 'planning';
+
+ALTER TABLE suppliers ADD COLUMN IF NOT EXISTS kind VARCHAR(50) DEFAULT 'Entreprise';
+
+CREATE TABLE IF NOT EXISTS documents (
+  id SERIAL PRIMARY KEY,
+  store_id INT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
+  folder VARCHAR(50) NOT NULL DEFAULT 'Autres',
+  name VARCHAR(255) NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  stored_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(120),
+  size_bytes BIGINT NOT NULL DEFAULT 0,
+  uploaded_by INT REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_store_folder ON documents(store_id, folder);

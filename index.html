@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Safari — Suivi d'ouverture des magasins</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#f5f7f8;
+    --card:#ffffff;
+    --ink:#16241f;
+    --muted:#7d8a86;
+    --line:#e7ece9;
+    --green:#0e7a5f;
+    --green-2:#16a37c;
+    --gold:#d8a441;
+    --gold-soft:#f6ead0;
+    --sidebar:#0d2c26;
+    --sidebar-2:#123c33;
+    --ok:#16a37c;
+    --warn:#e39b23;
+    --bad:#e05a4f;
+    --shadow:0 1px 2px rgba(13,44,38,.04),0 10px 30px rgba(13,44,38,.06);
+    --radius:16px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{font-family:'Plus Jakarta Sans',system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  a{color:inherit;text-decoration:none}
+  button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+
+  /* ---------- Shell ---------- */
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:246px;flex:0 0 246px;background:linear-gradient(170deg,var(--sidebar-2),var(--sidebar) 70%);color:#dce9e4;display:flex;flex-direction:column;padding:26px 18px 18px;position:sticky;top:0;height:100vh}
+  .brand{display:flex;align-items:center;gap:12px;padding:0 8px 26px}
+  .brand .mark{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,var(--gold),#f0c36a);display:grid;place-items:center;box-shadow:0 6px 14px rgba(216,164,65,.28)}
+  .brand .mark svg{width:21px;height:21px}
+  .brand b{font-size:17px;letter-spacing:.4px;color:#fff;display:block;line-height:1.1}
+  .brand span{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;color:#9dbdb1}
+  .nav-title{font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:#6f9588;padding:14px 12px 8px;font-weight:700}
+  .nav{display:flex;flex-direction:column;gap:3px}
+  .nav a{display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:10px;color:#b9d0c8;font-weight:600;font-size:13px;transition:.18s;position:relative}
+  .nav a svg{width:18px;height:18px;opacity:.85;flex:0 0 18px}
+  .nav a:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav a.active{background:rgba(216,164,65,.14);color:#f7dfa9}
+  .nav a.active::before{content:"";position:absolute;left:-18px;top:9px;bottom:9px;width:3px;border-radius:0 3px 3px 0;background:var(--gold)}
+  .nav a .badge{margin-left:auto;background:var(--bad);color:#fff;font-size:10px;font-weight:800;min-width:19px;height:19px;border-radius:9px;display:grid;place-items:center;padding:0 5px}
+  .sidebar-foot{margin-top:auto;border-top:1px solid rgba(255,255,255,.08);padding-top:16px}
+  .who{display:flex;align-items:center;gap:10px;padding:6px}
+  .avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#f0c36a,#d8a441);color:#3b2a08;font-weight:800;display:grid;place-items:center;font-size:12px;flex:0 0 36px}
+  .who b{font-size:12.5px;color:#fff;display:block}
+  .who small{font-size:10.5px;color:#8fb0a5}
+  .logout{margin-left:auto;color:#8fb0a5;padding:6px;border-radius:8px;display:grid;place-items:center}
+  .logout:hover{background:rgba(255,255,255,.06);color:#fff}
+  .logout svg{width:17px;height:17px}
+
+  /* ---------- Main ---------- */
+  .main{flex:1;min-width:0}
+  .topbar{height:70px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 30px;position:sticky;top:0;z-index:20}
+  .crumb{font-size:12px;color:var(--muted)}
+  .crumb b{color:var(--ink);font-weight:700}
+  .search{margin-left:auto;display:flex;align-items:center;gap:9px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 13px;width:250px;color:var(--muted)}
+  .search svg{width:16px;height:16px;flex:0 0 16px}
+  .search input{border:0;outline:0;background:transparent;font:inherit;font-size:12.5px;width:100%;color:var(--ink)}
+  .search input::placeholder{color:#a7b2ae}
+  .icon-btn{width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;position:relative;color:#52635d;transition:.18s}
+  .icon-btn:hover{border-color:#cdd8d3;background:var(--bg)}
+  .icon-btn svg{width:18px;height:18px}
+  .dot{position:absolute;top:8px;right:9px;width:7px;height:7px;border-radius:50%;background:var(--bad);border:2px solid #fff}
+
+  .content{padding:28px 30px 44px;max-width:1500px;margin:0 auto}
+  .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;margin-bottom:24px;flex-wrap:wrap}
+  .page-head h1{font-size:25px;font-weight:800;letter-spacing:-.6px}
+  .page-head p{color:var(--muted);font-size:13px;margin-top:4px}
+  .head-actions{display:flex;gap:10px;align-items:center}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:10px 15px;border-radius:10px;font-size:12.5px;font-weight:700;transition:.18s;white-space:nowrap}
+  .btn svg{width:16px;height:16px}
+  .btn-ghost{border:1px solid var(--line);background:var(--card);color:#41534c}
+  .btn-ghost:hover{border-color:#cdd8d3;background:var(--bg)}
+  .btn-primary{background:var(--green);color:#fff;box-shadow:0 6px 16px rgba(14,122,95,.22)}
+  .btn-primary:hover{background:#0b6b53;transform:translateY(-1px)}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .kpi::after{content:"";position:absolute;right:-24px;top:-24px;width:90px;height:90px;border-radius:50%;background:var(--tint,transparent);opacity:.45}
+  .kpi-top{display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1}
+  .kpi-label{font-size:11.5px;color:var(--muted);font-weight:600}
+  .kpi-ico{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--icobg,#eef6f3);color:var(--icoc,var(--green))}
+  .kpi-ico svg{width:17px;height:17px}
+  .kpi-val{font-size:27px;font-weight:800;letter-spacing:-.8px;margin-top:10px;position:relative;z-index:1}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:2px;position:relative;z-index:1}
+  .kpi-sub b{color:var(--ok);font-weight:700}
+  .kpi-sub .up{color:var(--ok)}
+  .kpi-sub .down{color:var(--bad)}
+
+  /* Grid */
+  .grid{display:grid;grid-template-columns:1.55fr 1fr;gap:18px;margin-bottom:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card-h{display:flex;align-items:center;justify-content:space-between;padding:18px 20px 12px;gap:12px}
+  .card-h h2{font-size:14px;font-weight:800;letter-spacing:-.2px}
+  .card-h p{font-size:11.5px;color:var(--muted);margin-top:2px}
+  .link{font-size:11.5px;color:var(--green);font-weight:700;display:inline-flex;align-items:center;gap:5px}
+  .link svg{width:13px;height:13px}
+  .card-b{padding:4px 20px 20px}
+
+  /* Chart */
+  .legend{display:flex;gap:16px;margin:2px 0 6px}
+  .legend span{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .legend i{width:9px;height:9px;border-radius:3px;display:block}
+  .chart{width:100%;height:auto;display:block;overflow:visible}
+  .chart .grid-l{stroke:#eef1ef;stroke-width:1}
+  .chart .axis{font-size:10px;fill:#9aa6a1;font-family:inherit}
+
+  /* Donut */
+  .donut-wrap{display:flex;align-items:center;gap:18px;padding:6px 0 2px}
+  .donut{width:132px;height:132px;flex:0 0 132px;position:relative}
+  .donut svg{transform:rotate(-90deg)}
+  .donut .center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .donut .center b{font-size:22px;font-weight:800;line-height:1}
+  .donut .center small{font-size:10px;color:var(--muted);margin-top:3px}
+  .dlist{display:flex;flex-direction:column;gap:11px;flex:1}
+  .drow{display:flex;align-items:center;gap:9px;font-size:11.5px}
+  .drow i{width:9px;height:9px;border-radius:3px;flex:0 0 9px}
+  .drow span{color:var(--muted)}
+  .drow b{margin-left:auto;font-size:12px}
+
+  /* Stores */
+  .stores-head{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+  .stores-head h2{font-size:16px;font-weight:800}
+  .stores-head p{font-size:12px;color:var(--muted);margin-top:2px}
+  .filters{display:flex;gap:7px;flex-wrap:wrap}
+  .chip{padding:7px 12px;border-radius:9px;font-size:11.5px;font-weight:700;color:var(--muted);background:var(--card);border:1px solid var(--line);transition:.18s}
+  .chip:hover{border-color:#cdd8d3;color:var(--ink)}
+  .chip.active{background:var(--green);color:#fff;border-color:var(--green)}
+  .store-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  .store{padding:17px 17px 16px;transition:.2s;cursor:pointer}
+  .store:hover{transform:translateY(-3px);box-shadow:0 14px 34px rgba(13,44,38,.12);border-color:#d7e0dc}
+  .store-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .store-ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#eef6f3;color:var(--green)}
+  .store-ico svg{width:18px;height:18px}
+  .store-name{font-size:13px;font-weight:800;margin-top:11px;line-height:1.25}
+  .store-city{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:3px}
+  .store-city svg{width:12px;height:12px}
+  .status{font-size:10px;font-weight:800;padding:5px 9px;border-radius:8px;white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+  .status i{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .st-ok{background:#e7f7f0;color:#0f8a68}
+  .st-warn{background:#fdf2df;color:#b97810}
+  .st-bad{background:#fdeae8;color:#c8443a}
+  .progress-line{display:flex;align-items:center;justify-content:space-between;margin-top:16px;font-size:10.5px;color:var(--muted)}
+  .progress-line b{font-size:12.5px;color:var(--ink)}
+  .track{height:7px;border-radius:6px;background:#eef2f0;margin-top:7px;overflow:hidden}
+  .fill{height:100%;width:0;border-radius:6px;background:linear-gradient(90deg,var(--green),var(--green-2));transition:width 1.1s cubic-bezier(.2,.8,.2,1)}
+  .fill.warn{background:linear-gradient(90deg,#e39b23,#f0b84e)}
+  .fill.bad{background:linear-gradient(90deg,#d9493e,#ef7a6b)}
+  .store-foot{display:flex;align-items:center;justify-content:space-between;border-top:1px solid var(--line);margin-top:14px;padding-top:12px;font-size:10.5px;color:var(--muted)}
+  .store-foot b{color:var(--ink);font-weight:700}
+  .store-foot .date{display:flex;align-items:center;gap:5px}
+  .store-foot svg{width:12px;height:12px}
+
+  /* Bottom split */
+  .bottom{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+  .queue-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}
+  .queue-item:last-child{border-bottom:0}
+  .q-ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:0 0 36px;background:var(--gold-soft);color:#a97a16}
+  .q-ico svg{width:17px;height:17px}
+  .q-txt{min-width:0;flex:1}
+  .q-txt b{font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .q-txt small{font-size:10.5px;color:var(--muted)}
+  .tag{font-size:9.5px;font-weight:800;padding:4px 8px;border-radius:7px;white-space:nowrap}
+  .tag-cg{background:#fdf2df;color:#b97810}
+  .tag-dg{background:#efe9fb;color:#7751b9}
+  .feed{display:flex;flex-direction:column;gap:0;padding:4px 0}
+  .f-item{display:flex;gap:12px;padding:10px 0;position:relative}
+  .f-item:not(:last-child)::before{content:"";position:absolute;left:12px;top:34px;bottom:-8px;width:1px;background:var(--line)}
+  .f-dot{width:25px;height:25px;border-radius:50%;flex:0 0 25px;display:grid;place-items:center;z-index:1}
+  .f-dot svg{width:12px;height:12px}
+  .f-ok{background:#e7f7f0;color:#0f8a68}
+  .f-up{background:#e8f1fb;color:#3a72ad}
+  .f-al{background:#fdeae8;color:#c8443a}
+  .f-va{background:var(--gold-soft);color:#a97a16}
+  .f-b{min-width:0}
+  .f-b b{font-size:11.5px;font-weight:700;display:block}
+  .f-b span{font-size:11px;color:var(--muted)}
+  .f-time{font-size:10px;color:#a3ada9;margin-left:auto;white-space:nowrap}
+
+  /* Toast */
+  .toast{position:fixed;right:24px;bottom:24px;background:var(--sidebar);color:#fff;padding:13px 18px;border-radius:12px;box-shadow:0 16px 40px rgba(13,44,38,.3);font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:9px;transform:translateY(20px);opacity:0;pointer-events:none;transition:.28s;z-index:99}
+  .toast.show{transform:translateY(0);opacity:1}
+  .toast svg{width:17px;height:17px;color:var(--gold)}
+
+  @media(max-width:1180px){.kpis{grid-template-columns:repeat(2,1fr)}.store-grid{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}}
+  @media(max-width:860px){.sidebar{display:none}.search{display:none}.content{padding:22px 18px}.topbar{padding:0 18px}.bottom{grid-template-columns:1fr}.store-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#3b2a08" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c3 3.5 4.5 7 4.5 10a4.5 4.5 0 0 1-9 0C7.5 9 9 5.5 12 2Z"/><path d="M12 22v-6M8 18l4-2 4 2"/></svg>
+      </div>
+      <div><b>SAFARI</b><span>Import · Export</span></div>
+    </div>
+
+    <div class="nav-title">Espace de travail</div>
+    <nav class="nav">
+      <a href="#" class="active" data-page="Tableau de bord">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+        Tableau de bord
+      </a>
+      <a href="#" data-page="Magasins">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 4.5 4h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>
+        Magasins <span class="badge">7</span>
+      </a>
+      <a href="#" data-page="Devis">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M8 13h8M8 17h5"/></svg>
+        Devis
+      </a>
+      <a href="#" data-page="Comparatifs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>
+        Comparatifs
+      </a>
+      <a href="#" data-page="Articles">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 7 9-4 9 4-9 4-9-4Z"/><path d="M3 7v10l9 4 9-4V7M12 11v10"/></svg>
+        Articles
+      </a>
+    </nav>
+
+    <div class="nav-title">Gestion</div>
+    <nav class="nav">
+      <a href="#" data-page="Utilisateurs">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
+        Utilisateurs
+      </a>
+      <a href="#" data-page="Rapports">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m7 15 4-4 3 3 5-6"/></svg>
+        Rapports
+      </a>
+      <a href="#" data-page="Journal d'activité">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        Journal d'activité
+      </a>
+    </nav>
+
+    <div class="sidebar-foot">
+      <div class="who">
+        <div class="avatar">DG</div>
+        <div><b>M. Diallo</b><small>Direction Générale</small></div>
+        <button class="logout" title="Déconnexion">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <header class="topbar">
+      <div class="crumb">Accueil &nbsp;/&nbsp; <b>Tableau de bord</b></div>
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input placeholder="Rechercher un magasin, un devis…" />
+      </label>
+      <button class="icon-btn" title="Messages">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z"/></svg>
+      </button>
+      <button class="icon-btn" title="Notifications">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg>
+        <span class="dot"></span>
+      </button>
+    </header>
+
+    <div class="content">
+      <!-- HEAD -->
+      <div class="page-head">
+        <div>
+          <h1>Vue d'ensemble</h1>
+          <p>Suivi de l'ouverture des 7 nouveaux magasins Safari · Mardi 17 novembre 2026</p>
+        </div>
+        <div class="head-actions">
+          <button class="btn btn-ghost" data-toast="Export du rapport en cours de préparation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg>
+            Exporter
+          </button>
+          <button class="btn btn-primary" data-toast="Nouveau magasin — formulaire à venir">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+            Nouveau magasin
+          </button>
+        </div>
+      </div>
+
+      <!-- KPIS -->
+      <section class="kpis">
+        <div class="kpi" style="--tint:#e7f3ee;--icobg:#e7f3ee;--icoc:#0e7a5f">
+          <div class="kpi-top"><span class="kpi-label">Magasins en cours</span><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div></div>
+          <div class="kpi-val">07</div>
+          <div class="kpi-sub">Répartis sur 7 villes du Maroc</div>
+        </div>
+        <div class="kpi" style="--tint:#e8f1fb;--icobg:#e8f1fb;--icoc:#3a72ad">
+          <div class="kpi-top"><span class="kpi-label">Progression globale</span><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18M7 15l4-4 3 3 5-6"/></svg></div></div>
+          <div class="kpi-val">52<span style="font-size:16px">%</span></div>
+          <div class="kpi-sub"><b class="up">▲ 8 pts</b> vs. mois dernier</div>
+        </div>
+        <div class="kpi" style="--tint:#fdeae8;--icobg:#fdeae8;--icoc:#c8443a">
+          <div class="kpi-top"><span class="kpi-label">Alertes actives</span><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01M10.3 3.9 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></div></div>
+          <div class="kpi-val">04</div>
+          <div class="kpi-sub"><b class="down">2 en retard</b> · 2 à risque</div>
+        </div>
+        <div class="kpi" style="--tint:#f6ead0;--icobg:#f6ead0;--icoc:#a97a16">
+          <div class="kpi-top"><span class="kpi-label">Budget engagé</span><div class="kpi-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div></div>
+          <div class="kpi-val">7,8 <span style="font-size:15px">M MAD</span></div>
+          <div class="kpi-sub">sur 12,4 M MAD prévus · <b>63 %</b></div>
+        </div>
+      </section>
+
+      <!-- CHARTS -->
+      <section class="grid">
+        <div class="card">
+          <div class="card-h">
+            <div><h2>Progression des ouvertures</h2><p>Évolution cumulée vs. objectif · septembre → mars</p></div>
+            <span class="link">Voir détail <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>
+          </div>
+          <div class="card-b">
+            <div class="legend"><span><i style="background:var(--green)"></i> Progression réelle</span><span><i style="background:var(--gold)"></i> Objectif</span></div>
+            <svg class="chart" viewBox="0 0 700 215" preserveAspectRatio="none" aria-label="Courbe de progression">
+              <defs>
+                <linearGradient id="area" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#16a37c" stop-opacity=".22"/>
+                  <stop offset="100%" stop-color="#16a37c" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <line class="grid-l" x1="40" y1="20" x2="690" y2="20"/><text class="axis" x="4" y="23">100%</text>
+              <line class="grid-l" x1="40" y1="60" x2="690" y2="60"/><text class="axis" x="12" y="63">75%</text>
+              <line class="grid-l" x1="40" y1="100" x2="690" y2="100"/><text class="axis" x="12" y="103">50%</text>
+              <line class="grid-l" x1="40" y1="140" x2="690" y2="140"/><text class="axis" x="12" y="143">25%</text>
+              <line class="grid-l" x1="40" y1="180" x2="690" y2="180"/><text class="axis" x="19" y="183">0%</text>
+              <path d="M40,167 L147,156 L253,142 L360,127 L467,114 L573,105 L680,97 L680,180 L40,180 Z" fill="url(#area)"/>
+              <polyline points="40,164 147,145 253,126 360,106 467,87 573,68 680,49" fill="none" stroke="#d8a441" stroke-width="2.5" stroke-dasharray="6 6" stroke-linejoin="round"/>
+              <polyline points="40,167 147,156 253,142 360,127 467,114 573,105 680,97" fill="none" stroke="#0e7a5f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              <g fill="#fff" stroke="#0e7a5f" stroke-width="2.5">
+                <circle cx="40" cy="167" r="3.5"/><circle cx="147" cy="156" r="3.5"/><circle cx="253" cy="142" r="3.5"/>
+                <circle cx="360" cy="127" r="3.5"/><circle cx="467" cy="114" r="3.5"/><circle cx="573" cy="105" r="3.5"/><circle cx="680" cy="97" r="4.5"/>
+              </g>
+              <g class="axis" text-anchor="middle" font-size="10.5">
+                <text x="40" y="201">Sep</text><text x="147" y="201">Oct</text><text x="253" y="201">Nov</text>
+                <text x="360" y="201">Déc</text><text x="467" y="201">Jan</text><text x="573" y="201">Fév</text><text x="680" y="201">Mar</text>
+              </g>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div><h2>État des magasins</h2><p>Répartition par signal</p></div>
+            <span class="link">Détails <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>
+          </div>
+          <div class="card-b">
+            <div class="donut-wrap">
+              <div class="donut">
+                <svg viewBox="0 0 132 132" width="132" height="132">
+                  <circle cx="66" cy="66" r="52" fill="none" stroke="#eef2f0" stroke-width="15"/>
+                  <circle cx="66" cy="66" r="52" fill="none" stroke="#16a37c" stroke-width="15" stroke-dasharray="140 187" stroke-dashoffset="0" stroke-linecap="round"/>
+                  <circle cx="66" cy="66" r="52" fill="none" stroke="#e39b23" stroke-width="15" stroke-dasharray="93 234" stroke-dashoffset="-146" stroke-linecap="round"/>
+                  <circle cx="66" cy="66" r="52" fill="none" stroke="#e05a4f" stroke-width="15" stroke-dasharray="93 234" stroke-dashoffset="-245" stroke-linecap="round"/>
+                </svg>
+                <div class="center"><b>7</b><small>magasins</small></div>
+              </div>
+              <div class="dlist">
+                <div class="drow"><i style="background:#16a37c"></i><span>En bonne voie</span><b>3</b></div>
+                <div class="drow"><i style="background:#e39b23"></i><span>À risque</span><b>2</b></div>
+                <div class="drow"><i style="background:#e05a4f"></i><span>En retard</span><b>2</b></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STORES -->
+      <section class="card" style="padding:18px 20px 20px">
+        <div class="stores-head">
+          <div><h2>Magasins</h2><p>Avancement détaillé de chaque ouverture</p></div>
+          <div class="filters">
+            <button class="chip active" data-filter="all">Tous (7)</button>
+            <button class="chip" data-filter="ok">En bonne voie</button>
+            <button class="chip" data-filter="warn">À risque</button>
+            <button class="chip" data-filter="bad">En retard</button>
+          </div>
+        </div>
+        <div class="store-grid" id="storeGrid">
+
+          <article class="store card" data-status="ok" data-name="Safari Casablanca Centre">
+            <div class="store-top"><div class="store-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div><span class="status st-ok"><i></i>En bonne voie</span></div>
+            <div class="store-name">Safari Casablanca Centre</div>
+            <div class="store-city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Casablanca</div>
+            <div class="progress-line"><span>Progression</span><b>78 %</b></div>
+            <div class="track"><div class="fill" data-w="78"></div></div>
+            <div class="store-foot"><span><b>42</b> / 54 articles installés</span><span class="date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>15 déc. 2026</span></div>
+          </article>
+
+          <article class="store card" data-status="ok" data-name="Safari Rabat Ville">
+            <div class="store-top"><div class="store-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div><span class="status st-ok"><i></i>En bonne voie</span></div>
+            <div class="store-name">Safari Rabat Ville</div>
+            <div class="store-city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Rabat</div>
+            <div class="progress-line"><span>Progression</span><b>64 %</b></div>
+            <div class="track"><div class="fill" data-w="64"></div></div>
+            <div class="store-foot"><span><b>34</b> / 53 articles installés</span><span class="date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>20 déc. 2026</span></div>
+          </article>
+
+          <article class="store card" data-status="warn" data-name="Safari Marrakech Guéliz">
+            <div class="store-top"><div class="store-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div><span class="status st-warn"><i></i>À risque</span></div>
+            <div class="store-name">Safari Marrakech Guéliz</div>
+            <div class="store-city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Marrakech</div>
+            <div class="progress-line"><span>Progression</span><b>45 %</b></div>
+            <div class="track"><div class="fill warn" data-w="45"></div></div>
+            <div class="store-foot"><span><b>24</b> / 53 articles installés</span><span class="date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>10 janv. 2027</span></div>
+          </article>
+
+          <article class="store card" data-status="bad" data-name="Safari Tanger Centre">
+            <div class="store-top"><div class="store-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div><span class="status st-bad"><i></i>En retard</span></div>
+            <div class="store-name">Safari Tanger Centre</div>
+            <div class="store-city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Tanger</div>
+            <div class="progress-line"><span>Progression</span><b>32 %</b></div>
+            <div class="track"><div class="fill bad" data-w="32"></div></div>
+            <div class="store-foot"><span><b>17</b> / 52 articles installés</span><span class="date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>18 janv. 2027</span></div>
+          </article>
+
+          <article class="store card" data-status="warn" data-name="Safari Fès Ville">
+            <div class="store-top"><div class="store-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div><span class="status st-warn"><i></i>À risque</span></div>
+            <div class="store-name">Safari Fès Ville</div>
+            <div class="store-city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Fès</div>
+            <div class="progress-line"><span>Progression</span><b>21 %</b></div>
+            <div class="track"><div class="fill warn" data-w="21"></div></div>
+            <div class="store-foot"><span><b>11</b> / 51 articles installés</span><span class="date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>05 févr. 2027</span></div>
+          </article>
+
+          <article class="store card" data-status="ok" data-name="Safari Agadir Marina">
+            <div class="store-top"><div class="store-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div><span class="status st-ok"><i></i>En bonne voie</span></div>
+            <div class="store-name">Safari Agadir Marina</div>
+            <div class="store-city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Agadir</div>
+            <div class="progress-line"><span>Progression</span><b>12 %</b></div>
+            <div class="track"><div class="fill" data-w="12"></div></div>
+            <div class="store-foot"><span><b>6</b> / 50 articles installés</span><span class="date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>12 févr. 2027</span></div>
+          </article>
+
+          <article class="store card" data-status="bad" data-name="Safari Meknès">
+            <div class="store-top"><div class="store-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 9 4.5 4h15L21 9M4 9v11h16V9M9 20v-6h6v6"/></svg></div><span class="status st-bad"><i></i>En retard</span></div>
+            <div class="store-name">Safari Meknès</div>
+            <div class="store-city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg>Meknès</div>
+            <div class="progress-line"><span>Progression</span><b>8 %</b></div>
+            <div class="track"><div class="fill bad" data-w="8"></div></div>
+            <div class="store-foot"><span><b>4</b> / 48 articles installés</span><span class="date"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>28 févr. 2027</span></div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- BOTTOM -->
+      <section class="bottom" style="margin-top:18px">
+        <div class="card">
+          <div class="card-h">
+            <div><h2>En attente de validation</h2><p>Comparatifs nécessitant une décision</p></div>
+            <span class="link">Tout voir <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>
+          </div>
+          <div class="card-b">
+            <div class="queue-item">
+              <div class="q-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>
+              <div class="q-txt"><b>Système de caisse POS</b><small>Safari Tanger · 4 devis · 245 000 MAD</small></div>
+              <span class="tag tag-cg">Attente CG</span>
+            </div>
+            <div class="queue-item">
+              <div class="q-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>
+              <div class="q-txt"><b>Étagères & mobilier</b><small>Safari Marrakech · 3 devis · 180 000 MAD</small></div>
+              <span class="tag tag-dg">Attente DG</span>
+            </div>
+            <div class="queue-item">
+              <div class="q-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/></svg></div>
+              <div class="q-txt"><b>Climatisation centrale</b><small>Safari Fès · 3 devis · 95 000 MAD</small></div>
+              <span class="tag tag-cg">Attente CG</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-h">
+            <div><h2>Activité récente</h2><p>Dernières actions enregistrées</p></div>
+            <span class="link">Journal <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg></span>
+          </div>
+          <div class="card-b">
+            <div class="feed">
+              <div class="f-item"><div class="f-dot f-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m5 12 4 4L19 6"/></svg></div><div class="f-b"><b>Comparatif validé</b><span>N. Amrani a validé « Étagères » · Casablanca</span></div><span class="f-time">il y a 10 min</span></div>
+              <div class="f-item"><div class="f-dot f-up"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 16V4M7 9l5-5 5 5"/></svg></div><div class="f-b"><b>3 devis téléversés</b><span>S. Bennani · articles IT · Rabat Ville</span></div><span class="f-time">il y a 45 min</span></div>
+              <div class="f-item"><div class="f-dot f-va"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div><div class="f-b"><b>Statut mis à jour : Livré</b><span>12 articles · Marrakech Guéliz</span></div><span class="f-time">il y a 2 h</span></div>
+              <div class="f-item"><div class="f-dot f-al"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 8v5M12 17h.01"/></svg></div><div class="f-b"><b>Alerte délai</b><span>Tanger Centre : 32 % de progression à 62 jours de l'ouverture</span></div><span class="f-time">il y a 5 h</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+  <span id="toastMsg"></span>
+</div>
+
+<script>
+  // Animate progress bars on load
+  window.addEventListener('load', function(){
+    document.querySelectorAll('.fill').forEach(function(el, i){
+      setTimeout(function(){ el.style.width = el.dataset.w + '%'; }, 120 + i*70);
+    });
+  });
+
+  // Toast helper
+  var toast = document.getElementById('toast'), msg = document.getElementById('toastMsg'), timer;
+  function showToast(text){
+    msg.textContent = text;
+    toast.classList.add('show');
+    clearTimeout(timer);
+    timer = setTimeout(function(){ toast.classList.remove('show'); }, 2600);
+  }
+  document.querySelectorAll('[data-toast]').forEach(function(b){
+    b.addEventListener('click', function(){ showToast(b.dataset.toast); });
+  });
+
+  // Sidebar navigation active state
+  document.querySelectorAll('.nav a').forEach(function(a){
+    a.addEventListener('click', function(e){
+      e.preventDefault();
+      document.querySelectorAll('.nav a').forEach(function(x){ x.classList.remove('active'); });
+      a.classList.add('active');
+      document.querySelector('.crumb b').textContent = a.dataset.page;
+      showToast('Module « ' + a.dataset.page + ' » — prochaine étape');
+    });
+  });
+
+  // Store filters
+  document.querySelectorAll('.chip').forEach(function(chip){
+    chip.addEventListener('click', function(){
+      document.querySelectorAll('.chip').forEach(function(c){ c.classList.remove('active'); });
+      chip.classList.add('active');
+      var f = chip.dataset.filter;
+      document.querySelectorAll('#storeGrid .store').forEach(function(s){
+        s.style.display = (f === 'all' || s.dataset.status === f) ? '' : 'none';
+      });
+    });
+  });
+
+  // Store cards
+  document.querySelectorAll('#storeGrid .store').forEach(function(s){
+    s.addEventListener('click', function(){ showToast('Ouverture de la fiche « ' + s.dataset.name + ' »'); });
+  });
+</script>
+</body>
+</html>
