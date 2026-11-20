@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { config } from '../config.js';
 import { query, tx } from '../db.js';
 import {
   requireAuth, asyncRoute, can, scope, ownsItem, DD_ROLES, canValidateDepartment, ddRolesForOwner,
@@ -272,7 +271,6 @@ router.get('/:id', requireAuth, asyncRoute(async (req, res) => {
     workflow: ['CDG', 'DD', 'DG'],
     current_stage: currentStage,
     can_validate: stageOf(req.user.role) === currentStage && canValidateDepartment(req.user.role, r.rows[0].owner_role),
-    requires_dg: Number(r.rows[0].amount_ttc || 0) >= config.dgThreshold,
   });
 }));
 

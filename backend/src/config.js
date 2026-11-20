@@ -51,7 +51,6 @@ export const config = {
       .filter(Boolean),
     requestTimeoutMs: intEnv('REQUEST_TIMEOUT_MS', 30000, 5000, 300000),
   },
-  dgThreshold: Number(process.env.DG_THRESHOLD || 100000),
   uploadDir: process.env.UPLOAD_DIR || './uploads',
   mail: {
     enabled: String(process.env.MAIL_ENABLED || 'false').toLowerCase() === 'true',
