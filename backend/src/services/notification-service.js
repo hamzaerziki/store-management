@@ -355,7 +355,7 @@ export async function publishEvent(eventKey, context = {}, options = {}) {
     }
     return { event_id: eventRow.id, event_key: eventKey, duplicate: false, recipients: created, channels };
   });
-  if (mailConfigured() && result.recipients?.some(row => row.channel === 'email')) {
+  if ((await mailConfigured()) && result.recipients?.some(row => row.channel === 'email')) {
     await deliverPendingEmails({ eventId: result.event_id, limit: 50 }).catch(error => {
       console.error('[mail] delivery failed:', error.message);
     });
@@ -364,7 +364,7 @@ export async function publishEvent(eventKey, context = {}, options = {}) {
 }
 
 export async function deliverPendingEmails({ eventId = null, limit = 50 } = {}) {
-  if (!mailConfigured()) return { skipped: true, sent: 0, failed: 0 };
+  if (!(await mailConfigured())) return { skipped: true, sent: 0, failed: 0 };
   const params = [];
   let where = "nr.channel='email' AND nr.status IN ('pending','failed') AND nr.retry_count < 5";
   if (eventId) { params.push(eventId); where += ` AND nr.event_id=$${params.length}`; }

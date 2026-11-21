@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { Plus, Upload, Folder, FolderOpen, FileImage, FileVideo, FileText, Download, Trash2, ArrowLeft, Eye, X } from 'lucide-react';
 import api, { getToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -182,15 +183,15 @@ export default function Site({ embedded = false, fixedStoreId = null }) {
             <span className="text-muted">/</span>
             <b>{activeFolder || 'Racine'}</b>
           </div>
-          {canUpload && scopeStoreId && (
-            <div className="flex flex-wrap gap-2">
-              <button className="btn-ghost !py-1.5" onClick={() => setFolderOpen(true)}><Plus size={15} /> Nouveau dossier</button>
-              <label className="btn-primary !py-1.5 cursor-pointer">
-                <Upload size={15} /> Importer (photos, vidéos, plans 3D, fichiers)
-                <input type="file" multiple className="hidden" onChange={uploadFiles} disabled={busy} accept="image/*,video/*,.pdf,.glb,.gltf,.obj,.fbx,.stl,.3ds,.dae,.ifc,.dwg,.dxf,.skp,.step,.stp,.ply,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z" />
-              </label>
-            </div>
-          )}
+              {canUpload && scopeStoreId && (
+                <div className="flex flex-wrap gap-2">
+                  <button className="btn-ghost !py-1.5" onClick={() => setFolderOpen(true)}><Plus size={15} /> Nouveau dossier</button>
+                  <label className="btn-primary !py-1.5 cursor-pointer">
+                    <Upload size={15} /> Importer
+                    <input type="file" multiple className="hidden" onChange={uploadFiles} disabled={busy} accept="image/*,video/*,.pdf,.glb,.gltf,.obj,.fbx,.stl,.3ds,.dae,.ifc,.dwg,.dxf,.skp,.step,.stp,.ply,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.7z" />
+                  </label>
+                </div>
+              )}
         </div>
 
         <div className="p-5">
@@ -216,7 +217,7 @@ export default function Site({ embedded = false, fixedStoreId = null }) {
                             <div className="font-bold text-[12.5px] mt-2 truncate">{folder.name}</div>
                             <div className="text-[10.5px] text-muted mt-1">{folder.count || 0} fichier(s)</div>
                           </button>
-                          {(can('manage_users') || canUpload) && folder.id && (
+                          {folder.id && (can('manage_users') || Number(folder.created_by) === Number(user?.id)) && (
                             <button className="text-red-600 text-[10.5px] font-bold mt-2 inline-flex items-center gap-1" onClick={() => setDeleteTarget(folder)}><Trash2 size={12} /> Supprimer le dossier</button>
                           )}
                         </div>

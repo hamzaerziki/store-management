@@ -147,19 +147,20 @@ router.get('/', requireAuth, asyncRoute(async (req, res) => {
       LEFT JOIN users u ON u.id=d.created_by
       WHERE ${where} ORDER BY d.created_at DESC, d.id DESC`;
   const r = await query(sql, params);
-  res.json(r.rows.map(row => ({
+  res.json(r.rows.map(row => {
+    const draftOwnerOrAdmin = row.status === 'draft' && (Number(row.created_by) === Number(req.user.id) || req.user.role === 'admin');
+    return ({
     ...row,
     created_by_department: row.created_by_department || row.created_by_user_department || (['IT'].includes(row.created_by_role) ? 'IT' : ['MG','RMG'].includes(row.created_by_role) ? 'MG' : (['IT'].includes(row.owner_role) ? 'IT' : ['MG','RMG'].includes(row.owner_role) ? 'MG' : null)),
     decisions: row.decisions || [],
     quotes: row.quotes || [],
     can_validate: canValidate(role, row.status, row.owner_role, row.created_by, req.user.id, row.created_by_role),
     next_validator_role: nextValidator(row.status, row.owner_role, row.created_by_role),
-    can_submit: row.status === 'draft' && (Number(row.created_by) === Number(req.user.id) || req.user.role === 'admin'),
-    can_edit: row.status === 'draft' && (Number(row.created_by) === Number(req.user.id) || req.user.role === 'admin'),
-    can_delete: row.status === 'approved'
-      ? req.user.role === 'admin'
-      : (req.user.role === 'admin' || (row.status === 'draft' && Number(row.created_by) === Number(req.user.id))),
-  })));
+    can_submit: draftOwnerOrAdmin,
+    can_edit: draftOwnerOrAdmin,
+    can_delete: draftOwnerOrAdmin,
+  });
+  }));
 }));
 
 router.get('/:id/history', requireAuth, asyncRoute(async (req, res) => {
@@ -215,6 +216,7 @@ router.get('/:id', requireAuth, asyncRoute(async (req, res) => {
     [req.params.id]
   );
   const drow = r.rows[0];
+  const draftOwnerOrAdmin = drow.status === 'draft' && (Number(drow.created_by) === Number(req.user.id) || req.user.role === 'admin');
   res.json({
     ...drow,
     created_by_department: drow.created_by_department || (['IT'].includes(drow.created_by_role) ? 'IT' : ['MG','RMG'].includes(drow.created_by_role) ? 'MG' : (['IT'].includes(drow.owner_role) ? 'IT' : ['MG','RMG'].includes(drow.owner_role) ? 'MG' : null)),
@@ -226,19 +228,17 @@ router.get('/:id', requireAuth, asyncRoute(async (req, res) => {
         : r.rows[0].status === 'pending_dg' ? 'DG' : null,
     can_validate: canValidate(req.user.role, r.rows[0].status, r.rows[0].owner_role, r.rows[0].created_by, req.user.id, r.rows[0].created_by_role),
     next_validator_role: nextValidator(r.rows[0].status, r.rows[0].owner_role, r.rows[0].created_by_role),
-    can_submit: r.rows[0].status === 'draft' && (Number(r.rows[0].created_by) === Number(req.user.id) || req.user.role === 'admin'),
-    can_edit: r.rows[0].status === 'draft' && (Number(r.rows[0].created_by) === Number(req.user.id) || req.user.role === 'admin'),
-    can_delete: r.rows[0].status === 'approved'
-      ? req.user.role === 'admin'
-      : (req.user.role === 'admin' || (r.rows[0].status === 'draft' && Number(r.rows[0].created_by) === Number(req.user.id))),
+    can_submit: draftOwnerOrAdmin,
+    can_edit: draftOwnerOrAdmin,
+    can_delete: draftOwnerOrAdmin,
   });
 }));
 
 router.post('/', requireAuth, can('manage_demands'), asyncRoute(async (req, res) => {
-  const { store_id, item_id, title, description, amount, kind, deadline } = req.body || {};
+  const { store_id, item_id, title, description, amount, kind, deadline, owner_role } = req.body || {};
   if (!store_id || !title) return res.status(400).json({ error: 'Magasin et intitulé requis' });
-  const ownerRole = departmentOf(req.user.role) || req.user.role;
-  if (!['IT', 'MG'].includes(ownerRole)) return res.status(403).json({ error: 'Création réservée à IT / MG' });
+  const ownerRole = departmentOf(owner_role) || departmentOf(req.user.role) || req.user.role;
+  if (!['IT', 'MG'].includes(ownerRole)) return res.status(403).json({ error: 'Création réservée aux départements IT / MG' });
   const lotId = req.body?.lot_id || (req.body?.lot_label ? await resolveLotId(store_id, req.body.lot_label) : null);
   try { await assertAssignment(req, store_id, lotId || null); }
   catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
@@ -256,21 +256,37 @@ router.put('/:id', requireAuth, asyncRoute(async (req, res) => {
   const old = await query('SELECT * FROM demands WHERE id=$1', [req.params.id]);
   const demand = old.rows[0];
   if (!demand) return res.status(404).json({ error: 'Demande introuvable' });
-  if (Number(demand.created_by) !== Number(req.user.id)) return res.status(403).json({ error: 'Seul le créateur peut modifier cette demande' });
   if (demand.status !== 'draft') return res.status(400).json({ error: 'Seule une demande en brouillon peut être modifiée' });
-  const { title, description, amount_ht, amount, vat_rate, deadline } = req.body || {};
+  if (Number(demand.created_by) !== Number(req.user.id) && req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Seul le créateur ou l’administrateur peut modifier cette demande' });
+  }
+  const { title, description, amount_ht, amount, vat_rate, deadline, store_id, lot_id, lot_label, item_id, kind, owner_role } = req.body || {};
   if (!title || !String(title).trim()) return res.status(400).json({ error: 'Intitulé obligatoire' });
+  const storeId = Number(store_id || demand.store_id);
+  if (!storeId) return res.status(400).json({ error: 'Magasin requis' });
+  const lotId = lot_id || (lot_label ? await resolveLotId(storeId, lot_label) : demand.lot_id || null);
+  try { await assertAssignment(req, storeId, lotId || null); }
+  catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
+
+  const nextOwner = departmentOf(owner_role) || demand.owner_role || departmentOf(req.user.role) || 'MG';
+  if (!['IT', 'MG'].includes(nextOwner)) return res.status(400).json({ error: 'Département invalide' });
+  const demandKind = ['article', 'mission'].includes(kind) ? kind : (demand.kind || 'article');
   const ht = Number(amount_ht ?? amount ?? demand.amount) || 0;
   const rate = Number(vat_rate || 20);
   const tva = Math.round(ht * rate) / 100;
   const ttc = Math.round(ht * (100 + rate)) / 100;
+
   const updated = await query(
-    `UPDATE demands SET title=$1, description=$2, amount=$3, deadline=$4, updated_at=NOW()
-     WHERE id=$5 RETURNING *`,
-    [String(title).trim(), description || null, ht, deadline || null, demand.id]
+    `UPDATE demands SET store_id=$1, lot_id=$2, item_id=$3, owner_role=$4, title=$5, description=$6, amount=$7, kind=$8, deadline=$9, updated_at=NOW()
+     WHERE id=$10 RETURNING *`,
+    [storeId, lotId || null, item_id || demand.item_id || null, nextOwner, String(title).trim(), description || null, ht, demandKind, deadline || null, demand.id]
   );
-  await query('UPDATE quotes SET amount_ht=$2, amount_tva=$3, amount_ttc=$4 WHERE demand_id=$1 AND deleted_at IS NULL', [demand.id, ht, tva, ttc]);
-  await audit(req, 'UPDATE_DEMAND', 'demand', demand.id, { title: updated.rows[0].title, amount: ht });
+  await query(
+    `UPDATE quotes SET amount_ht=$2, amount_tva=$3, amount_ttc=$4, vat_rate=$5, store_id=COALESCE(store_id,$6), lot_id=COALESCE(lot_id,$7)
+     WHERE demand_id=$1 AND deleted_at IS NULL`,
+    [demand.id, ht, tva, ttc, rate, storeId, lotId || null]
+  );
+  await audit(req, 'UPDATE_DEMAND', 'demand', demand.id, { title: updated.rows[0].title, amount: ht, owner_role: nextOwner, store_id: storeId });
   res.json(updated.rows[0]);
 }));
 
@@ -296,13 +312,9 @@ router.delete('/:id', requireAuth, asyncRoute(async (req, res) => {
   const old = await query('SELECT id, title, amount, status, store_id, item_id, created_by FROM demands WHERE id=$1', [req.params.id]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Demande introuvable' });
   const demand = old.rows[0];
-  const isCreator = Number(demand.created_by) === Number(req.user.id);
-  if (demand.status === 'approved') {
-    if (req.user.role !== 'admin') {
-      return res.status(403).json({ error: 'Une demande approuvée par DG ne peut être supprimée que par un administrateur' });
-    }
-  } else if (req.user.role !== 'admin' && !(isCreator && demand.status === 'draft')) {
-    return res.status(403).json({ error: 'Suppression réservée à l\'administrateur ou au créateur d\'un brouillon' });
+  const draftOwnerOrAdmin = demand.status === 'draft' && (Number(demand.created_by) === Number(req.user.id) || req.user.role === 'admin');
+  if (!draftOwnerOrAdmin) {
+    return res.status(403).json({ error: 'Après soumission, une demande ne peut plus être supprimée' });
   }
   const result = await tx(async client => {
     const tasks = await client.query('DELETE FROM planning_tasks WHERE demand_id=$1 RETURNING id', [demand.id]);
@@ -318,16 +330,10 @@ router.delete('/:id', requireAuth, asyncRoute(async (req, res) => {
     amount: demand.amount,
     status: demand.status,
     store_id: demand.store_id,
-    budget_released: demand.status === 'approved',
+    budget_released: false,
     planning_tasks_removed: result.planning_tasks_removed,
   });
-  res.json({
-    ok: true,
-    id: demand.id,
-    amount_released: demand.status === 'approved' ? (Number(demand.amount) || 0) : 0,
-    budget_released: demand.status === 'approved',
-    planning_tasks_removed: result.planning_tasks_removed,
-  });
+  res.json({ ok: true, id: demand.id, amount_released: 0, budget_released: false, planning_tasks_removed: result.planning_tasks_removed });
 }));
 
 router.patch('/:id/action', requireAuth, asyncRoute(async (req, res) => {

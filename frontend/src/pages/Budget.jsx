@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { Link } from 'react-router-dom';
 import { Wallet, Plus, Layers, ArrowRight, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import api from '../api/client';
@@ -71,6 +72,7 @@ export default function Budget({ embedded = false, fixedStoreId = null }) {
   };
 
   useEffect(() => { load(); }, [storeId, fixedStoreId]);
+  useDataRefresh(load, []);
 
   useEffect(() => {
     if (!selectedId) { setVersions([]); return; }

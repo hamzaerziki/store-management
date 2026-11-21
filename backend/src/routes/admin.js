@@ -7,6 +7,8 @@ import { config } from '../config.js';
 import { requireAuth, asyncRoute, can, USER_ROLES } from '../middleware/auth.js';
 import { audit } from '../utils/audit.js';
 import { STATUS_LABELS } from '../utils/progress.js';
+import { getMailSettings, sendTestMail } from '../services/mailer.js';
+import { setSetting, clearSettingCache } from '../services/app-settings.js';
 
 const router = Router();
 
@@ -226,6 +228,41 @@ router.get('/reports/progress.csv', requireAuth, can('export_reports'), asyncRou
 
 router.get('/config', requireAuth, asyncRoute(async (req, res) => {
   res.json({ statuses: STATUS_LABELS });
+}));
+
+router.get('/settings/smtp', requireAuth, can('manage_users'), asyncRoute(async (req, res) => {
+  res.json(await getMailSettings({ includeSecret: false }));
+}));
+
+router.put('/settings/smtp', requireAuth, can('manage_users'), asyncRoute(async (req, res) => {
+  const body = req.body || {};
+  const current = await getMailSettings({ includeSecret: true });
+  const password = body.password === undefined || body.password === null || body.password === ''
+    ? current.password
+    : String(body.password);
+  const settings = {
+    enabled: Boolean(body.enabled),
+    host: String(body.host || '').trim(),
+    port: Number(body.port || 587),
+    secure: Boolean(body.secure),
+    user: String(body.user || '').trim(),
+    password,
+    from: String(body.from || body.user || '').trim(),
+  };
+  if (settings.enabled && (!settings.host || !settings.from)) {
+    return res.status(400).json({ error: 'H?te SMTP et exp?diteur requis quand SMTP est activ?' });
+  }
+  await setSetting('smtp', settings, req.user.id);
+  clearSettingCache('smtp');
+  await audit(req, 'UPDATE_SMTP_SETTINGS', 'app_setting', 'smtp', { enabled: settings.enabled, host: settings.host, port: settings.port, secure: settings.secure, user: settings.user, from: settings.from, password_set: Boolean(settings.password) });
+  res.json(await getMailSettings({ includeSecret: false }));
+}));
+
+router.post('/settings/smtp/test', requireAuth, can('manage_users'), asyncRoute(async (req, res) => {
+  const to = String(req.body?.to || req.user?.email || '').trim();
+  const result = await sendTestMail(to);
+  await audit(req, 'TEST_SMTP_SETTINGS', 'app_setting', 'smtp', { to, messageId: result.messageId });
+  res.json(result);
 }));
 
 export default router;

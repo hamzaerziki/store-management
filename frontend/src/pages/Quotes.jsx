@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { Plus, Search, FileText, Trash2, Eye, ExternalLink } from 'lucide-react';
 import api, { getToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -36,6 +37,7 @@ export default function Quotes({ embedded = false, fixedStoreId = null }) {
     api.get('/suppliers').then(r => setSuppliers(r.data)).catch(() => {});
     api.get('/stores').then(r => setStores(r.data)).catch(() => {});
   }, [scopeStoreId]);
+  useDataRefresh(load, []);
 
   const fileUrl = quote => `${API_ORIGIN}/api/quotes/${quote.id}/file?token=${encodeURIComponent(getToken() || '')}`;
 

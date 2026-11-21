@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, Plus, FileUp, Wallet, ClipboardList, Clock3, Coins, CalendarClock, Eye, Sparkles, ListChecks, AlertTriangle, TrendingUp, Users, Filter, Gauge } from 'lucide-react';
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
@@ -169,6 +170,7 @@ export default function StoreDetail() {
     api.get('/templates').then(r => setTemplates(r.data)).catch(() => {});
     api.get('/suppliers').then(r => setSuppliers(r.data)).catch(() => {});
   }, [id]);
+  useDataRefresh(() => load(), [id]);
 
   async function generateChecklist() {
     setGenerating(true); setNotice('');

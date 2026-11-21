@@ -515,11 +515,7 @@ router.get('/:id/file', requireAuth, asyncRoute(async (req, res) => {
   );
   const row = r.rows[0];
   if (!row?.file_url) return res.status(404).json({ error: 'Fichier introuvable' });
-  const isOwner = Number(row.uploaded_by) === Number(req.user.id) || Number(row.created_by) === Number(req.user.id);
-  const canReview = ['CDG', 'CG', 'DD', 'RMG', 'DG'].includes(req.user.role);
-  if (req.user.role !== 'admin' && !isOwner && !canReview) {
-    return res.status(403).json({ error: 'Accès réservé au propriétaire ou aux validateurs du devis' });
-  }
+  // A1: devis visible to any authorized assigned role
   const filePath = resolveUpload(row.file_url);
   if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable' });
   const filename = path.basename(filePath).replace(/"/g, '');

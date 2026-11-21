@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -234,6 +235,7 @@ export default function Comparisons({ embedded = false, fixedStoreId = null }) {
     api.get(withStore('/quotes')).then(r => setQuotes(r.data)).catch(() => {});
     if (!embedded && can('view_budget')) api.get('/comparisons/cross-store').then(r => setMatrix(r.data)).catch(() => {});
   }, [scopeStoreId]);
+  useDataRefresh(load, []);
 
   const itemQuotes = quotes.filter(q => String(q.item_id) === String(form.item_id));
   const quotesFor = id => quotes.filter(q => String(q.item_id) === String(id));

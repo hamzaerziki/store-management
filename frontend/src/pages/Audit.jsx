@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { Search, ScrollText, RefreshCcw, CalendarClock, LogIn, ShieldX, CheckCircle2, Globe, Eye } from 'lucide-react';
 import api from '../api/client';
 import { Card, PageHeader, Empty, ErrorBox, Modal } from '../components/ui';
@@ -23,7 +24,7 @@ function fmtDate(d) { try { return new Date(d).toLocaleDateString('fr-FR'); } ca
 function fmtTime(d) { try { return new Date(d).toLocaleTimeString('fr-FR'); } catch { return ''; } }
 
 function actionMeta(action = '') {
-  const a = String(action).toUpper();
+  const a = String(action).toUpperCase();
   if (a.includes('LOGIN_FAILED') || a.includes('ECHEC')) return { label: 'Échec connexion', cls: 'bg-red-100 text-red-700 border-red-200' };
   if (a.includes('LOGIN_SUCCESS') || a === 'CONNEXION') return { label: 'Connexion', cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
   if (a.includes('LOGOUT') || a.includes('DECONNEX')) return { label: 'Déconnexion', cls: 'bg-slate-100 text-slate-700 border-slate-200' };
@@ -99,6 +100,7 @@ export default function Audit() {
   };
 
   useEffect(() => { load(1, pageSize); }, [action, entity, userId, dateFrom, dateTo, pageSize]);
+  useDataRefresh(load, []);
   useEffect(() => { const t = setTimeout(() => load(1, pageSize), 350); return () => clearTimeout(t); }, [q]);
 
   const totalPages = Math.max(1, Math.ceil(total / pageSize));

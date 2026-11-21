@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { Link } from 'react-router-dom';
 import { Plus, MapPin, CalendarDays, ImagePlus, Pencil, Trash2, ZoomIn, ZoomOut, MoveLeft, MoveRight, MoveUp, MoveDown, RotateCcw } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { PageHeader, StatusBadge, ProgressBar, Modal, Field, ErrorBox, money, dateFR } from '../components/ui';
+import { PageHeader, StatusBadge, ProgressBar, Modal, Field, ErrorBox, ConfirmDialog, money, dateFR } from '../components/ui';
 
 const API_ORIGIN = (import.meta.env.VITE_API_URL || 'http://localhost:4000/api').replace(/\/api$/, '');
 const BRAND_EXTENSIONS = ['svg', 'png', 'jpg', 'jpeg', 'webp'];
@@ -39,14 +40,16 @@ function BrandLogo({ name }) {
 const EMPTY_FORM = { name: '', city: '', opening_date: '', budget: '', image: null };
 
 export default function Stores() {
-  const { can } = useAuth();
+  const { can, user } = useAuth();
   const [stores, setStores] = useState([]);
   const [filter, setFilter] = useState('all');
   const [open, setOpen] = useState(false);
   const [editStore, setEditStore] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [editForm, setEditForm] = useState({ name: '', city: '', opening_date: '', budget: '', date_change_reason: '', budget_reason: '', image: null });
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState('');
   const [editPreview, setEditPreview] = useState('');
   const [zoom, setZoom] = useState(1);
@@ -60,11 +63,12 @@ export default function Stores() {
 
   const load = () => api.get('/stores').then(r => setStores(r.data)).catch(setError);
   useEffect(() => { load(); }, []);
+  useDataRefresh(load, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
   useEffect(() => () => { if (editPreview && editPreview.startsWith('blob:')) URL.revokeObjectURL(editPreview); }, [editPreview]);
 
   const shown = stores.filter(s => filter === 'all' || s.computed_status === filter);
-  const filters = [['all', 'Tous'], ['on_track', 'En bonne voie'], ['at_risk', 'À risque'], ['en_retard', 'En retard'], ['ready', 'Prêts'], ['ouvert', 'Ouvert']];
+  const filters = [['all', 'Tous'], ['on_track', 'En bonne voie'], ['at_risk', '? risque'], ['en_retard', 'En retard'], ['ready', 'Pr?ts'], ['ouvert', 'Ouvert']];
   const counts = Object.fromEntries(filters.map(([k]) => [k, k === 'all' ? stores.length : stores.filter(s => s.computed_status === k).length]));
 
   const resetImage = () => { setZoom(1); setPan({ x: 0, y: 0 }); dragOrigin.current = null; setDragging(false); };
@@ -122,10 +126,10 @@ export default function Stores() {
         opening_date: editForm.opening_date,
         forecast_open_date: editForm.opening_date,
         revised_open_date: editForm.opening_date,
-        date_change_reason: editForm.date_change_reason || 'Mise à jour magasin',
+        date_change_reason: editForm.date_change_reason || 'Mise ? jour magasin',
       });
       if (budgetChanged && editForm.budget !== '') {
-        await api.put(`/stores/${editStore.id}/budget`, { budget: Number(editForm.budget), reason: editForm.budget_reason || 'Mise à jour budget magasin' });
+        await api.put(`/stores/${editStore.id}/budget`, { budget: Number(editForm.budget), reason: editForm.budget_reason || 'Mise ? jour budget magasin' });
       }
       if (editForm.image) {
         const payload = new FormData();
@@ -148,6 +152,17 @@ export default function Stores() {
     } catch (e) { setError(e); }
   }
 
+  async function deleteStore() {
+    if (!deleteTarget) return;
+    setBusy(true); setError('');
+    try {
+      await api.delete(`/stores/${deleteTarget.id}`);
+      setStores(current => current.filter(store => store.id !== deleteTarget.id));
+      setDeleteTarget(null);
+    } catch (e) { setError(e); }
+    finally { setBusy(false); }
+  }
+
   const PhotoEditor = ({ previewUrl, file, zoomVal, panVal, draggingVal, onChoose, onZoom, onMove, onStart, onDrag, onEnd, onReset, label }) => (
     <div className="rounded-2xl border border-dashed border-line bg-canvas/70 p-4">
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -158,17 +173,17 @@ export default function Stores() {
         onPointerDown={previewUrl ? onStart : undefined} onPointerMove={previewUrl ? onDrag : undefined} onPointerUp={previewUrl ? onEnd : undefined} onPointerCancel={previewUrl ? onEnd : undefined}>
         {previewUrl ? (
           <>
-            <img src={previewUrl} alt="Aperçu du magasin" draggable={false} className="h-full w-full object-contain p-2" style={{ transform: `translate(${panVal.x}px, ${panVal.y}px) scale(${zoomVal})`, transition: draggingVal ? 'none' : 'transform 0.18s ease' }} />
+            <img src={previewUrl} alt="Aper?u du magasin" draggable={false} className="h-full w-full object-contain p-2" style={{ transform: `translate(${panVal.x}px, ${panVal.y}px) scale(${zoomVal})`, transition: draggingVal ? 'none' : 'transform 0.18s ease' }} />
             <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1 max-w-[180px]" onPointerDown={e => e.stopPropagation()}>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Zoom avant" onClick={() => onZoom(0.2)}><ZoomIn size={14} /></button>
-              <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Zoom arrière" onClick={() => onZoom(-0.2)}><ZoomOut size={14} /></button>
+              <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Zoom arri?re" onClick={() => onZoom(-0.2)}><ZoomOut size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Gauche" onClick={() => onMove(-24, 0)}><MoveLeft size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Droite" onClick={() => onMove(24, 0)}><MoveRight size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Haut" onClick={() => onMove(0, -24)}><MoveUp size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Bas" onClick={() => onMove(0, 24)}><MoveDown size={14} /></button>
-              <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Réinitialiser" onClick={onReset}><RotateCcw size={14} /></button>
+              <button type="button" className="btn-ghost !p-2 !rounded-xl" title="R?initialiser" onClick={onReset}><RotateCcw size={14} /></button>
             </div>
-            <div className="pointer-events-none absolute bottom-2 left-2 rounded-lg bg-white/85 px-2 py-1 text-[9.5px] font-semibold text-muted">Glissez pour cadrer / déplacer</div>
+            <div className="pointer-events-none absolute bottom-2 left-2 rounded-lg bg-white/85 px-2 py-1 text-[9.5px] font-semibold text-muted">Glissez pour cadrer / d?placer</div>
           </>
         ) : (
           <div className="text-center px-4"><ImagePlus size={26} className="mx-auto text-muted" /><div className="text-[11.5px] font-semibold text-muted mt-2">Aucune image</div></div>
@@ -210,10 +225,19 @@ export default function Stores() {
                   <div><div className="text-muted">Budget</div><div className="font-bold">{money(s.budget)}</div></div>
                 </div>
               </Link>
-              {can('manage_stores') && (
-                <button type="button" className={`btn-ghost !p-2 !rounded-xl bg-white/90 shadow-sm ${image ? 'absolute right-7 top-7' : 'absolute right-5 top-5'}`} title="Modifier le magasin" aria-label={`Modifier ${s.name}`} onClick={() => openEdit(s)}>
-                  <Pencil size={14} />
-                </button>
+              {(can('manage_stores') || user?.role === 'admin') && (
+                <div className={`absolute flex gap-1.5 ${image ? 'right-4 top-4' : 'right-4 top-4'}`}>
+                  {can('manage_stores') && (
+                    <button type="button" className="btn-ghost !p-2 !rounded-xl bg-white/90 shadow-sm" title="Modifier le magasin" aria-label={`Modifier ${s.name}`} onClick={() => openEdit(s)}>
+                      <Pencil size={14} />
+                    </button>
+                  )}
+                  {user?.role === 'admin' && (
+                    <button type="button" className="btn-ghost !p-2 !rounded-xl bg-white/90 shadow-sm text-red-600 hover:bg-red-50" title="Supprimer le magasin" aria-label={`Supprimer ${s.name}`} onClick={() => setDeleteTarget(s)}>
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           );
@@ -228,34 +252,45 @@ export default function Stores() {
               <Field label="Ville"><input className="input" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} required /></Field>
               <Field label="Date d'ouverture"><input type="date" className="input" value={form.opening_date} onChange={e => setForm({ ...form, opening_date: e.target.value })} required /></Field>
             </div>
-            <Field label="Budget prévisionnel (MAD)"><input type="number" min="0" className="input" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })} required /></Field>
+            <Field label="Budget pr?visionnel (MAD)"><input type="number" min="0" className="input" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })} required /></Field>
           </div>
           <PhotoEditor previewUrl={preview} file={form.image} zoomVal={zoom} panVal={pan} draggingVal={dragging} onChoose={chooseImage} onZoom={changeZoom} onMove={moveImage} onStart={startDrag} onDrag={dragImage} onEnd={endDrag} onReset={resetImage} />
-          <div className="md:col-span-2 flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={closeModal}>Annuler</button><button className="btn-primary">Créer le magasin</button></div>
+          <div className="md:col-span-2 flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={closeModal}>Annuler</button><button className="btn-primary">Cr?er le magasin</button></div>
         </form>
       </Modal>
 
-      <Modal open={!!editStore} onClose={closeEdit} title={`Modifier — ${editStore?.name || ''}`} wide>
+      <Modal open={!!editStore} onClose={closeEdit} title={`Modifier ? ${editStore?.name || ''}`} wide>
         <form onSubmit={saveEdit} className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
           <div className="space-y-4">
             <Field label="Nom du magasin"><input className="input" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} required /></Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Ville"><input className="input" value={editForm.city} onChange={e => setEditForm({ ...editForm, city: e.target.value })} required /></Field>
-              <Field label="Date d'ouverture (souhaitée)"><input type="date" className="input" value={editForm.opening_date} onChange={e => setEditForm({ ...editForm, opening_date: e.target.value })} required /></Field>
+              <Field label="Date d'ouverture (souhait?e)"><input type="date" className="input" value={editForm.opening_date} onChange={e => setEditForm({ ...editForm, opening_date: e.target.value })} required /></Field>
             </div>
-            <Field label="Budget prévisionnel (MAD)"><input type="number" min="0" className="input" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} /></Field>
-            <Field label="Motif (date / modifications)"><input className="input" value={editForm.date_change_reason} onChange={e => setEditForm({ ...editForm, date_change_reason: e.target.value })} placeholder="Ex. nouveau calendrier validé" /></Field>
-            {can('edit_budget') && <Field label="Motif révision budget"><input className="input" value={editForm.budget_reason} onChange={e => setEditForm({ ...editForm, budget_reason: e.target.value })} placeholder="Motif si le budget change" /></Field>}
+            <Field label="Budget pr?visionnel (MAD)"><input type="number" min="0" className="input" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} /></Field>
+            <Field label="Motif (date / modifications)"><input className="input" value={editForm.date_change_reason} onChange={e => setEditForm({ ...editForm, date_change_reason: e.target.value })} placeholder="Ex. nouveau calendrier valid?" /></Field>
+            {can('edit_budget') && <Field label="Motif r?vision budget"><input className="input" value={editForm.budget_reason} onChange={e => setEditForm({ ...editForm, budget_reason: e.target.value })} placeholder="Motif si le budget change" /></Field>}
             <div className="rounded-xl bg-canvas px-3 py-2 text-[11px] text-muted">Date initiale (immuable) : {dateFR(editStore?.initial_open_date || editStore?.opening_date)}</div>
           </div>
           <div>
-            <PhotoEditor previewUrl={editPreview} file={editForm.image} zoomVal={editZoom} panVal={editPan} draggingVal={editDragging} onChoose={chooseEditImage} onZoom={changeEditZoom} onMove={moveEditImage} onStart={startEditDrag} onDrag={dragEditImage} onEnd={endEditDrag} onReset={resetEditImage} label="Photo (cadre / zoom / déplacement)" />
+            <PhotoEditor previewUrl={editPreview} file={editForm.image} zoomVal={editZoom} panVal={editPan} draggingVal={editDragging} onChoose={chooseEditImage} onZoom={changeEditZoom} onMove={moveEditImage} onStart={startEditDrag} onDrag={dragEditImage} onEnd={endEditDrag} onReset={resetEditImage} label="Photo (cadre / zoom / d?placement)" />
             {editPreview && <button type="button" className="btn-ghost mt-2 w-full justify-center" onClick={removeStoreImage}><Trash2 size={14} /> Retirer la photo</button>}
           </div>
           <ErrorBox error={error} />
           <div className="md:col-span-2 flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={closeEdit}>Annuler</button><button className="btn-primary">Enregistrer les modifications</button></div>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={deleteStore}
+        title="Supprimer le magasin"
+        message={`Le magasin ? ${deleteTarget?.name || ''} ? et toutes ses donn?es associ?es (demandes, documents, planning, etc.) seront supprim?s d?finitivement. Cette action est irr?versible.`}
+        confirmLabel="Supprimer d?finitivement"
+        danger
+        busy={busy}
+      />
     </>
   );
 }

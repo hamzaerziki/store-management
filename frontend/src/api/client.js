@@ -5,6 +5,15 @@ const api = axios.create({
   timeout: 20000,
 });
 
+function emitDataChanged(config) {
+  if (typeof window === 'undefined') return;
+  const method = String(config?.method || 'get').toLowerCase();
+  if (!['post', 'put', 'patch', 'delete'].includes(method)) return;
+  const url = String(config?.url || '');
+  if (url.includes('/auth/login') || url.includes('/auth/change-password')) return;
+  window.dispatchEvent(new CustomEvent('safari:data-changed', { detail: { method, url } }));
+}
+
 export function getToken() {
   return localStorage.getItem('safari_token') || sessionStorage.getItem('safari_token');
 }
@@ -23,7 +32,10 @@ api.interceptors.request.use(config => {
 });
 
 api.interceptors.response.use(
-  r => r,
+  r => {
+    emitDataChanged(r.config);
+    return r;
+  },
   err => {
     if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
       clearSession();

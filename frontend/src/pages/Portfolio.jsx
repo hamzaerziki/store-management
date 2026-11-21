@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { Link } from 'react-router-dom';
 import { Plus, Search, Download, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import api from '../api/client';
@@ -47,6 +48,7 @@ export default function Portfolio() {
 
   const load = () => api.get('/stores').then(r => setStores(Array.isArray(r.data) ? r.data : [])).catch(setError);
   useEffect(() => { load(); }, []);
+  useDataRefresh(load, []);
 
   const enriched = useMemo(() => stores.map(s => ({
     ...s,

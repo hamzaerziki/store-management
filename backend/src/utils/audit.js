@@ -4,9 +4,11 @@ import { publishEvent, EVENT_KEYS } from '../services/notification-service.js';
 export async function audit(req, action, entity, entityId, details = {}) {
   const user = req?.user || {};
   const forwarded = req?.headers?.['x-forwarded-for'];
-  const ip = (Array.isArray(forwarded) ? forwarded[0] : forwarded || '')
-    .toString().split(',')[0].trim()
-    || req?.ip || req?.socket?.remoteAddress || null;
+  const forwardedIp = (Array.isArray(forwarded) ? forwarded[0] : forwarded || '')
+    .toString().split(',').map(v => v.trim()).find(Boolean);
+  const realIp = req?.headers?.['x-real-ip'];
+  const rawIp = forwardedIp || realIp || req?.ip || req?.socket?.remoteAddress || '';
+  const ip = String(rawIp).replace(/^::ffff:/, '').trim() || null;
   try {
     await query(
       `INSERT INTO audit_logs (user_id,user_name,action,entity,entity_id,details,ip)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { Send, Check, X, Clock, FileUp, Trash2, Pencil, Eye, Users, Filter } from 'lucide-react';
 import api, { getToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -33,7 +34,9 @@ export default function Demands() {
   const [actionTarget, setActionTarget] = useState(null);
   const [actionForm, setActionForm] = useState({ action: '', action_note: '' });
   const [editTarget, setEditTarget] = useState(null);
-  const [editForm, setEditForm] = useState({ title: '', description: '', amount_ht: '', vat_rate: '20', deadline: '' });
+  const [editForm, setEditForm] = useState({ title: '', description: '', amount_ht: '', vat_rate: '20', deadline: '', store_id: '', lot_label: '', kind: 'article', owner_role: '' });
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftForm, setDraftForm] = useState({ title: '', description: '', amount_ht: '', vat_rate: '20', deadline: '', store_id: '', lot_label: '', kind: 'article', owner_role: '' });
   const [busy, setBusy] = useState(false);
 
   const quoteFileUrl = quote => `${API_ORIGIN}/api/quotes/${quote.id}/file?token=${encodeURIComponent(getToken() || '')}`;
@@ -62,6 +65,7 @@ export default function Demands() {
     api.get('/suppliers').then(r => setSuppliers(r.data)).catch(() => {});
     api.get('/categories').then(r => setCategories(r.data)).catch(() => {});
   }, [supplierFilter]);
+  useDataRefresh(load, []);
 
   async function validate(id, decision, comment = '') {
     setError(''); setNotice(''); setBusy(true);
@@ -90,10 +94,25 @@ export default function Demands() {
     setEditForm({
       title: demand.title || '',
       description: demand.description || '',
-      amount_ht: String(demand.amount || ''),
+      amount_ht: String(demand.amount ?? ''),
       vat_rate: '20',
-      deadline: demand.deadline || '',
+      deadline: demand.deadline ? String(demand.deadline).slice(0, 10) : '',
+      store_id: String(demand.store_id || ''),
+      lot_label: demand.lot_name || '',
+      kind: demand.kind || 'article',
+      owner_role: demand.owner_role || '',
     });
+  }
+
+  async function saveDraft(e) {
+    e.preventDefault(); setError(''); setNotice(''); setBusy(true);
+    try {
+      await api.post('/demands', { ...draftForm, amount: draftForm.amount_ht });
+      setNotice('Brouillon créé'); setDraftOpen(false);
+      setDraftForm({ title: '', description: '', amount_ht: '', vat_rate: '20', deadline: '', store_id: '', lot_label: '', kind: 'article', owner_role: '' });
+      load();
+    } catch (err) { setError(err); }
+    finally { setBusy(false); }
   }
 
   async function saveEdit(e) {
@@ -337,30 +356,51 @@ export default function Demands() {
         </form>
       </Modal>
 
-      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={`Modifier — ${editTarget?.title || ''}`}>
+      <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={`Modifier - ${editTarget?.title || ''}`}>
         <form onSubmit={saveEdit} className="space-y-4">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11.5px] text-emerald-900">Modification possible uniquement tant que la demande est en brouillon. Le devis joint est recalculé avec le montant HT et la TVA choisie.</div>
-          <Field label="Intitulé"><input className="input" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required /></Field>
-          <Field label="Description"><textarea className="input min-h-[75px]" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} /></Field>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11.5px] text-emerald-900">Modification possible uniquement en brouillon, par le cr?ateur ou l?administrateur. Apr?s soumission, la demande devient non modifiable et non supprimable.</div>
           <div className="grid grid-cols-2 gap-3">
+            <Field label="Magasin"><select className="input" value={editForm.store_id} onChange={e => setEditForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">S?lectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+            <Field label="Type"><select className="input" value={editForm.kind} onChange={e => setEditForm(f => ({ ...f, kind: e.target.value }))}><option value="article">Article</option><option value="mission">Mission</option></select></Field>
+          </div>
+          <Field label="Intitul?"><input className="input" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required /></Field>
+          <Field label="Description"><textarea className="input min-h-[75px]" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} /></Field>
+          <div className="grid grid-cols-3 gap-3">
             <Field label="Montant HT (MAD)"><input type="number" step="0.01" className="input" value={editForm.amount_ht} onChange={e => setEditForm(f => ({ ...f, amount_ht: e.target.value }))} required /></Field>
             <Field label="TVA"><select className="input" value={editForm.vat_rate} onChange={e => setEditForm(f => ({ ...f, vat_rate: e.target.value }))}><option value="20">20 %</option><option value="10">10 %</option><option value="0">0 %</option></select></Field>
+            <Field label="Date limite"><input type="date" className="input" value={editForm.deadline} onChange={e => setEditForm(f => ({ ...f, deadline: e.target.value }))} /></Field>
           </div>
-          <Field label="Date limite"><input type="date" className="input" value={editForm.deadline} onChange={e => setEditForm(f => ({ ...f, deadline: e.target.value }))} /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Lot / zone"><input className="input" value={editForm.lot_label} onChange={e => setEditForm(f => ({ ...f, lot_label: e.target.value }))} /></Field>
+            <Field label="D?partement"><select className="input" value={editForm.owner_role} onChange={e => setEditForm(f => ({ ...f, owner_role: e.target.value }))}><option value="">Automatique</option><option value="IT">IT</option><option value="MG">MG</option></select></Field>
+          </div>
           <div className="flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={() => setEditTarget(null)}>Annuler</button><button className="btn-primary" disabled={busy}>Enregistrer</button></div>
         </form>
       </Modal>
 
-      <Modal open={!!actionTarget} onClose={() => setActionTarget(null)} title={`Action — ${actionTarget?.title || ''}`}>
-        <form onSubmit={saveAction} className="space-y-4">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11.5px] text-emerald-900">Le demandeur peut renseigner l’action donnée à cette demande après la décision.</div>
-          <Field label="Action"><input className="input" value={actionForm.action} onChange={e => setActionForm(f => ({ ...f, action: e.target.value }))} placeholder="Ex. Commander, planifier, classer sans suite…" required /></Field>
-          <Field label="Précision"><textarea className="input min-h-[75px]" value={actionForm.action_note} onChange={e => setActionForm(f => ({ ...f, action_note: e.target.value }))} placeholder="Détails utiles pour le suivi" /></Field>
-          <div className="flex justify-end gap-2"><button type="button" className="btn-ghost" onClick={() => setActionTarget(null)}>Annuler</button><button className="btn-primary" disabled={busy}>Enregistrer</button></div>
+      <Modal open={draftOpen} onClose={() => setDraftOpen(false)} title="Nouvelle demande (brouillon)">
+        <form onSubmit={saveDraft} className="space-y-4">
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11.5px] text-emerald-900">Brouillon sans devis. Vous pourrez ajouter un devis ensuite ou soumettre sans devis.</div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Magasin"><select className="input" value={draftForm.store_id} onChange={e => setDraftForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">S?lectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+            <Field label="Type"><select className="input" value={draftForm.kind} onChange={e => setDraftForm(f => ({ ...f, kind: e.target.value }))}><option value="article">Article</option><option value="mission">Mission</option></select></Field>
+          </div>
+          <Field label="Intitul?"><input className="input" value={draftForm.title} onChange={e => setDraftForm(f => ({ ...f, title: e.target.value }))} required /></Field>
+          <Field label="Description"><textarea className="input min-h-[75px]" value={draftForm.description} onChange={e => setDraftForm(f => ({ ...f, description: e.target.value }))} /></Field>
+          <div className="grid grid-cols-3 gap-3">
+            <Field label="Montant HT (MAD)"><input type="number" step="0.01" className="input" value={draftForm.amount_ht} onChange={e => setDraftForm(f => ({ ...f, amount_ht: e.target.value }))} /></Field>
+            <Field label="TVA"><select className="input" value={draftForm.vat_rate} onChange={e => setDraftForm(f => ({ ...f, vat_rate: e.target.value }))}><option value="20">20 %</option><option value="10">10 %</option><option value="0">0 %</option></select></Field>
+            <Field label="Date limite"><input type="date" className="input" value={draftForm.deadline} onChange={e => setDraftForm(f => ({ ...f, deadline: e.target.value }))} /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Lot / zone"><input className="input" value={draftForm.lot_label} onChange={e => setDraftForm(f => ({ ...f, lot_label: e.target.value }))} /></Field>
+            <Field label="D?partement"><select className="input" value={draftForm.owner_role} onChange={e => setDraftForm(f => ({ ...f, owner_role: e.target.value }))}><option value="">Automatique</option><option value="IT">IT</option><option value="MG">MG</option></select></Field>
+          </div>
+          <div className="flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={() => setDraftOpen(false)}>Annuler</button><button className="btn-primary" disabled={busy}>Cr?er brouillon</button></div>
         </form>
       </Modal>
 
-      <DemandDetailsModal
+<DemandDetailsModal
         open={!!detailsTarget}
         onClose={() => setDetailsTarget(null)}
         demand={detailsTarget}

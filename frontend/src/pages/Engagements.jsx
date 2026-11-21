@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { ShoppingCart, FileText, CalendarClock, Plus, ArrowRight } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -51,6 +52,7 @@ export default function Engagements({ embedded = false, fixedStoreId = null }) {
   };
 
   useEffect(() => { load(); }, [scopeStoreId]);
+  useDataRefresh(load, []);
 
   const lots = useMemo(() => {
     const seen = new Set();

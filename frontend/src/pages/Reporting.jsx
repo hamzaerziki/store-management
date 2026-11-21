@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
@@ -53,7 +54,7 @@ export default function Reporting() {
     api.get('/reporting/filters').then(r => setOptions(r.data || {})).catch(() => {});
   }, []);
 
-  useEffect(() => {
+  const load = () => {
     const query = new URLSearchParams(FILTER_KEYS.filter(key => filters[key]).map(key => [key, String(filters[key])])).toString();
     const suffix = query ? `?${query}` : '';
     setError('');
@@ -62,7 +63,10 @@ export default function Reporting() {
       setGeneratedAt(new Date());
     }).catch(setError);
     api.get(`/reporting/summary${suffix}`).then(r => setSummary(r.data || {})).catch(() => setSummary({}));
-  }, [filters]);
+  };
+
+  useEffect(() => { load(); }, [filters]);
+  useDataRefresh(load, [JSON.stringify(filters)]);
 
   const stores = data.stores || [];
   const trend = data.trend || [];

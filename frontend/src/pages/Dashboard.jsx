@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import {
   AreaChart, Area, BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
@@ -40,12 +41,15 @@ export default function Dashboard() {
     api.get('/dashboard/filters').then(r => setFilterOptions(r.data)).catch(() => {});
   }, []);
 
-  useEffect(() => {
+  const load = () => {
     sessionStorage.setItem('safari_dashboard_filters', JSON.stringify(filters));
     const query = new URLSearchParams(Object.entries(filters).filter(([, value]) => value).map(([key, value]) => [key, String(value)])).toString();
     setError('');
     api.get(`/dashboard/global${query ? `?${query}` : ''}`).then(r => setData(r.data)).catch(setError);
-  }, [filters]);
+  };
+
+  useEffect(() => { load(); }, [filters]);
+  useDataRefresh(load, [JSON.stringify(filters)]);
 
   const shellClass = 'reporting-shell -mx-5 -mt-5 -mb-5 min-h-screen px-5 py-6 sm:-mx-7 sm:-mt-7 sm:-mb-7 sm:px-7';
 

@@ -30,6 +30,7 @@ import { deliverPendingEmails } from './services/notification-service.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+app.set('trust proxy', true);
 app.disable('x-powered-by');
 app.use(helmet({ crossOriginResourcePolicy: false, frameguard: false, contentSecurityPolicy: false }));
 app.use(cors({
@@ -135,6 +136,8 @@ await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '30-notific
 await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '31-gantt-traceability.sql'), 'utf8'));
 await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '32-execution-progress-logic.sql'), 'utf8'));
 await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '33-audit-journal.sql'), 'utf8'));
+await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '34-user-departments.sql'), 'utf8'));
+await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '35-category-french-smtp-settings.sql'), 'utf8'));
 
 const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(`Safari backend listening on port ${config.port}`);

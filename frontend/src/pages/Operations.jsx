@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { ShoppingCart, Receipt, CreditCard, CalendarClock, AlertTriangle, PackageCheck, UsersRound } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -76,6 +77,7 @@ export default function Operations() {
     api.get('/users').then(r => setUsers(r.data)).catch(() => {});
   };
   useEffect(() => { loadBase(); }, []);
+  useDataRefresh(load, []);
 
   useEffect(() => {
     const query = storeId ? `?store_id=${storeId}` : '';

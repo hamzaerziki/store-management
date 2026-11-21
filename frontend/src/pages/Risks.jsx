@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useDataRefresh } from '../hooks/useDataRefresh';
 import { AlertTriangle, Plus, Check, X, Clock, GitBranch, Sparkles, ShieldCheck, ClipboardList } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -65,13 +66,7 @@ export default function Risks({ embedded = false, fixedStoreId = null }) {
 
   const loadRisks = () => api.get(`/operations/risks${query}`).then(r => setRisks(r.data)).catch(setError);
   const loadChanges = () => api.get(`/governance/change-requests${query}`).then(r => setChanges(r.data)).catch(setError);
-
-  useEffect(() => {
-    api.get('/stores').then(r => setStores(r.data)).catch(() => {});
-    api.get('/quotes').then(r => setQuotes(r.data)).catch(() => {});
-  }, []);
-
-  useEffect(() => {
+  const load = () => {
     api.get(`/operations/lots${query}`).then(r => setLots(r.data)).catch(() => {});
     api.get(`/operations/planning_tasks${query}`).then(r => setTasks(r.data)).catch(() => {});
     api.get(`/operations/budgets${query}`).then(r => setBudgets(r.data)).catch(() => {});
@@ -81,7 +76,14 @@ export default function Risks({ embedded = false, fixedStoreId = null }) {
     api.get(`/documents${query}`).then(r => setDocuments(r.data)).catch(() => {});
     loadRisks();
     loadChanges();
-  }, [scopeStoreId]);
+  };
+
+  useEffect(() => {
+    api.get('/stores').then(r => setStores(r.data)).catch(() => {});
+    api.get('/quotes').then(r => setQuotes(r.data)).catch(() => {});
+  }, []);
+  useEffect(() => { load(); }, [scopeStoreId]);
+  useDataRefresh(load, [scopeStoreId]);
 
   const riskCriticality = Number(riskForm.severity || 0) * Number(riskForm.probability || 0);
   const canDecide = DIRECTORS.includes(user?.role);

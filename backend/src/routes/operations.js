@@ -525,13 +525,19 @@ router.get('/:resource', requireAuth, asyncRoute(async (req, res) => {
   where += ` ${scope.clause}`;
   if (req.params.resource === 'planning_tasks') {
     const role = req.user.role;
-    const allPlanning = ['admin', 'CDG', 'CG', 'RMG', ...DD_ROLES, 'DG'].includes(role);
+    const allPlanning = ['admin', 'CDG', 'CG', ...DD_ROLES, 'DG'].includes(role);
     if (!allPlanning) {
       const dept = departmentOf(role);
       if (dept) {
+        params.push(req.user.id);
         params.push(dept);
-        where += ` AND (department = $${params.length} OR (department IS NULL AND owner_role = ANY($${params.length + 1}::text[])))`;
-        params.push(dept === 'IT' ? ['IT'] : ['MG', 'RMG']);
+        const uidIdx = params.length - 1;
+        const deptIdx = params.length;
+        const roles = dept === 'IT' ? ['IT'] : ['MG', 'RMG'];
+        params.push(roles);
+        const rolesIdx = params.length;
+        where += ` AND (planning_tasks.created_by = $${uidIdx} OR EXISTS (SELECT 1 FROM demands d WHERE d.id = planning_tasks.demand_id AND d.created_by = $${uidIdx}))`;
+        where += ` AND (planning_tasks.department = $${deptIdx} OR (planning_tasks.department IS NULL AND planning_tasks.owner_role = ANY($${rolesIdx}::text[])))`;
       } else {
         where += ' AND 1=0';
       }
@@ -713,10 +719,20 @@ router.put('/planning_tasks/:id', requireAuth, can('manage_operations'), asyncRo
   const old = await query('SELECT * FROM planning_tasks WHERE id=$1 FOR UPDATE', [req.params.id]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Tâche de planning introuvable' });
   await assertStoreWritable(req, old.rows[0].store_id);
-  await assertAssignment(req, old.rows[0].store_id, old.rows[0].lot_id);
-  const lotId = lot_label ? await resolveLotId(old.rows[0].store_id, lot_label) : null;
-  if (start_date && end_date && new Date(start_date) > new Date(end_date)) {
-    return res.status(400).json({ error: 'La date de fin doit suivre la date de début' });
+  const role = await effectiveRole(req, old.rows[0].store_id, old.rows[0].lot_id);
+  const ownerDepartment = departmentOf(role);
+  if (ownerDepartment && old.rows[0].department && old.rows[0].department !== ownerDepartment) {
+    return res.status(403).json({ error: 'Tâche hors périmètre de votre département' });
+  }
+  if (ownerDepartment) {
+    const ownerCheck = await query(
+      `SELECT 1 FROM planning_tasks t LEFT JOIN demands d ON d.id=t.demand_id
+       WHERE t.id=$1 AND (t.created_by=$2 OR d.created_by=$2) LIMIT 1`,
+      [old.rows[0].id, req.user.id]
+    );
+    if (!ownerCheck.rows[0] && !['admin','CDG','CG','DG',...DD_ROLES].includes(role)) {
+      return res.status(403).json({ error: 'Vous ne pouvez modifier que vos propres demandes/tâches' });
+    }
   }
   const execMap = {
     accepte_dg: { progress: 0, state: 'a_faire' },

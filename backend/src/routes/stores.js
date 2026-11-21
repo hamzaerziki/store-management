@@ -173,10 +173,11 @@ router.put('/:id', requireAuth, can('manage_stores'), asyncRoute(async (req, res
   res.json(r.rows[0]);
 }));
 
-router.delete('/:id', requireAuth, can('manage_stores'), asyncRoute(async (req, res) => {
-  const r = await query('DELETE FROM stores WHERE id = $1 RETURNING id', [req.params.id]);
-  if (!r.rowCount) return res.status(404).json({ error: 'Magasin introuvable' });
-  await audit(req, 'DELETE_STORE', 'store', req.params.id, {});
+router.delete('/:id', requireAuth, requireRole('admin'), asyncRoute(async (req, res) => {
+  const current = await query('SELECT id,name FROM stores WHERE id=$1', [req.params.id]);
+  if (!current.rowCount) return res.status(404).json({ error: 'Magasin introuvable' });
+  await query('DELETE FROM stores WHERE id=$1', [req.params.id]);
+  await audit(req, 'DELETE_STORE', 'store', req.params.id, { name: current.rows[0].name });
   res.json({ ok: true });
 }));
 
