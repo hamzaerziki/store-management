@@ -53,7 +53,7 @@ async function buildSummary(req, filters) {
     query(
       `SELECT s.id, s.name, s.city, s.brand, s.code, EXTRACT(YEAR FROM s.opening_date)::int AS opening_year,
         s.opening_date, s.project_state, s.budget, s.status_override, u.role AS owner_role,
-        COALESCE((SELECT SUM(po.amount) FROM purchase_orders po WHERE po.store_id=s.id AND po.state IN ('commande','recu','clos')),0) AS engaged,
+        COALESCE((SELECT SUM(po.amount) FROM purchase_orders po WHERE po.store_id=s.id AND po.state IN ('commande','recu','clos')),0) AS po_engaged,
         COALESCE((SELECT SUM(i.amount_ttc) FROM invoices i WHERE i.store_id=s.id AND i.credit_note=false),0) AS invoiced,
         COALESCE((SELECT SUM(p.amount) FROM payments p WHERE p.store_id=s.id),0) AS paid,
         (SELECT COUNT(*)::int FROM risks rk WHERE rk.store_id=s.id AND rk.state NOT IN ('clos','resolu')) AS risks,
@@ -64,7 +64,9 @@ async function buildSummary(req, filters) {
     ),
     query(`SELECT i.store_id, i.status, ${ITEM_ESTIMATE} AS estimate FROM items i WHERE 1=1 ${itemScope.clause}`, itemScope.params),
   ]);
+  const ENGAGED_STATUSES = new Set(['validated','approved','ordered','delivered','installed']);
   const statusByStore = new Map();
+  const engagedByStore = new Map();
   storeRows.rows.forEach(store => {
     const rows = itemRows.rows
       .filter(item => item.store_id === store.id)
@@ -75,9 +77,17 @@ async function buildSummary(req, filters) {
       installed: rows.filter(row => row.status === 'installed').length,
     });
     statusByStore.set(store.id, signal.status);
+    const itemEngaged = rows.filter(r => ENGAGED_STATUSES.has(r.status)).reduce((sum, r) => sum + Number(r.estimated_budget || 0), 0);
+    const poEngaged = Number(store.po_engaged || 0);
+    engagedByStore.set(store.id, Math.max(itemEngaged, poEngaged));
   });
   const stores = applyFilters(
-    storeRows.rows.map(store => ({ ...store, computed_status: statusByStore.get(store.id) })),
+    storeRows.rows.map(store => ({
+      ...store,
+      engaged: engagedByStore.get(store.id) || 0,
+      computed_status: statusByStore.get(store.id),
+      progress: computeStoreProgress(itemRows.rows.filter(item => item.store_id === store.id).map(item => ({ status: item.status, estimated_budget: item.estimate }))),
+    })),
     filters
   );
   const totals = stores.reduce((acc, store) => {
