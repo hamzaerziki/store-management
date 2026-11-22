@@ -132,7 +132,14 @@ export async function readScope(req, column = 'store_id', startIndex = 1) {
 
 export async function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : (req.query?.token || req.query?.access_token || null);
+  const bearer = header.startsWith('Bearer ') ? header.slice(7) : null;
+  const queryToken = req.query?.token || req.query?.access_token || null;
+  if (queryToken && !bearer) {
+    const path = String(req.originalUrl || req.path || '');
+    const allowQueryToken = /^\/api\/(documents|quotes)\/[^/]+\/(view|download|file)(\?|$)/.test(path);
+    if (!allowQueryToken) return res.status(401).json({ error: 'Authentification requise' });
+  }
+  const token = bearer || queryToken;
   if (!token) return res.status(401).json({ error: 'Authentification requise' });
   try {
     const payload = jwt.verify(token, config.jwt.secret, {

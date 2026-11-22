@@ -15,7 +15,8 @@ const MAGIC = {
   '.jpg': [[0xff, 0xd8, 0xff]],
   '.jpeg': [[0xff, 0xd8, 0xff]],
   '.gif': [[0x47, 0x49, 0x46, 0x38]],
-  '.webp': [[0x52, 0x49, 0x46, 0x46], [0x52, 0x49, 0x46, 0x46]],
+  '.webp': [[0x52, 0x49, 0x46, 0x46]],
+  '.bmp': [[0x42, 0x4d]],
   '.zip': [[0x50, 0x4b, 0x03, 0x04], [0x50, 0x4b, 0x05, 0x06], [0x50, 0x4b, 0x07, 0x08]],
   '.docx': [[0x50, 0x4b, 0x03, 0x04]],
   '.xlsx': [[0x50, 0x4b, 0x03, 0x04]],
@@ -41,8 +42,14 @@ export function validateUpload(file, allowedKinds = ['pdf', 'image', 'document']
   if (!allowedExts.has(ext)) return 'Type de fichier non autorisé';
   if (!checkBuffer) return null;
   const signatures = MAGIC[ext];
-  if (signatures && !signatures.some(sig => file.buffer.length >= sig.length && file.buffer.subarray(0, sig.length).equals(Buffer.from(sig)))) {
-    return 'Le contenu du fichier ne correspond pas à son extension';
+  if (signatures) {
+    const ok = signatures.some(sig => file.buffer.length >= sig.length && file.buffer.subarray(0, sig.length).equals(Buffer.from(sig)));
+    if (!ok) return 'Le contenu du fichier ne correspond pas à son extension';
+    if (ext === '.webp' && !(file.buffer.length >= 12 && file.buffer.subarray(8, 12).toString('ascii') === 'WEBP')) {
+      return 'Le contenu du fichier ne correspond pas à son extension';
+    }
+  } else if (['image', 'pdf'].some(k => allowedKinds.includes(k)) && ['.pdf', '.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp'].includes(ext)) {
+    return 'Signature de fichier non reconnue';
   }
   return null;
 }

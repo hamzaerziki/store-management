@@ -30,9 +30,21 @@ import { deliverPendingEmails } from './services/notification-service.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
-app.set('trust proxy', true);
+const trustProxy = ['true', '1', 'yes'].includes(String(config.security.trustProxy).toLowerCase())
+  ? 1
+  : ['false', '0', 'no'].includes(String(config.security.trustProxy).toLowerCase())
+    ? false
+    : config.security.trustProxy;
+app.set('trust proxy', trustProxy);
 app.disable('x-powered-by');
-app.use(helmet({ crossOriginResourcePolicy: false, frameguard: false, contentSecurityPolicy: false }));
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false,
+}));
+app.use((req, res, next) => {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  next();
+});
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || config.security.allowedOrigins.includes(origin)) return callback(null, true);
@@ -70,7 +82,8 @@ app.use('/uploads', express.static(path.resolve(config.uploadDir), {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Cache-Control', 'private, max-age=3600');
-    res.setHeader('Content-Disposition', /^\.(png|jpe?g|gif|webp|bmp)$/.test(ext) ? 'inline' : 'attachment');
+    const safeName = path.basename(filePath).replace(/[\r\n"]/g, '');
+    res.setHeader('Content-Disposition', /^\.(png|jpe?g|gif|webp|bmp)$/.test(ext) ? `inline; filename="${safeName}"` : `attachment; filename="${safeName}"`);
   },
 }));
 

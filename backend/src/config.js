@@ -45,6 +45,7 @@ export const config = {
     bcryptRounds: intEnv('BCRYPT_ROUNDS', 12, 10, 15),
     passwordMinLength: intEnv('PASSWORD_MIN_LENGTH', 12, 8, 128),
     loginMaxAttempts: intEnv('LOGIN_MAX_ATTEMPTS', 10, 3, 100),
+    trustProxy: process.env.TRUST_PROXY || '1',
     allowedOrigins: String(process.env.FRONTEND_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173')
       .split(',')
       .map(origin => origin.trim())

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query, tx } from '../db.js';
-import { requireAuth, requireRole, asyncRoute, can, assertFinancialActor, assertAssignment } from '../middleware/auth.js';
+import { requireAuth, requireRole, asyncRoute, can, assertFinancialActor, assertAssignment, readScope } from '../middleware/auth.js';
 import { audit } from '../utils/audit.js';
 import { computeStoreProgress, storeSignal } from '../utils/progress.js';
 import { createUpload, persistUpload } from '../utils/upload-security.js';
@@ -35,7 +35,8 @@ router.get('/', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.get('/:id', requireAuth, asyncRoute(async (req, res) => {
-  const r = await query('SELECT * FROM stores WHERE id = $1', [req.params.id]);
+  const scope = await readScope(req, 'id', 2);
+  const r = await query(`SELECT * FROM stores WHERE id = $1 ${scope.clause}`, [req.params.id, ...scope.params]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Magasin introuvable' });
   res.json(await withProgress(r.rows[0]));
 }));
@@ -190,8 +191,10 @@ router.delete('/:id', requireAuth, requireRole('admin'), asyncRoute(async (req, 
 }));
 
 router.post('/:id/generate-items', requireAuth, can('update_items'), asyncRoute(async (req, res) => {
-  const st = await query('SELECT id,name FROM stores WHERE id=$1', [req.params.id]);
+  const scope = await readScope(req, 'id', 2);
+  const st = await query(`SELECT id,name FROM stores WHERE id=$1 ${scope.clause}`, [req.params.id, ...scope.params]);
   if (!st.rows[0]) return res.status(404).json({ error: 'Magasin introuvable' });
+  try { await assertAssignment(req, req.params.id); } catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
   const categoryIds = Array.isArray(req.body?.category_ids) ? req.body.category_ids.map(Number).filter(Boolean) : [];
   const templates = categoryIds.length
     ? await query('SELECT * FROM item_templates WHERE category_id = ANY($1::int[]) ORDER BY id', [categoryIds])
@@ -216,11 +219,12 @@ router.post('/:id/generate-items', requireAuth, can('update_items'), asyncRoute(
 }));
 
 router.get('/:id/items', requireAuth, asyncRoute(async (req, res) => {
+  const scope = await readScope(req, 'i.store_id', 2);
   const r = await query(
     `SELECT i.*, c.name AS category_name FROM items i
      JOIN categories c ON c.id = i.category_id
-     WHERE i.store_id = $1 ORDER BY i.id`,
-    [req.params.id]
+     WHERE i.store_id = $1 ${scope.clause} ORDER BY i.id`,
+    [req.params.id, ...scope.params]
   );
   res.json(r.rows);
 }));

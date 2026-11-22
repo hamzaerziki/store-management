@@ -518,7 +518,8 @@ router.get('/:id/file', requireAuth, asyncRoute(async (req, res) => {
   // A1: devis visible to any authorized assigned role
   const filePath = resolveUpload(row.file_url);
   if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable' });
-  const filename = path.basename(filePath).replace(/"/g, '');
+  const filename = path.basename(filePath).replace(/[\r\n"]/g, '') || 'devis';
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
   res.sendFile(filePath);
 }));

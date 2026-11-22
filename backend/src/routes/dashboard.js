@@ -399,7 +399,8 @@ router.get('/global', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.get('/store/:id', requireAuth, asyncRoute(async (req, res) => {
-  const st = await query('SELECT * FROM stores WHERE id=$1', [req.params.id]);
+  const scope = await readScope(req, 'id', 2);
+  const st = await query(`SELECT * FROM stores WHERE id=$1 ${scope.clause}`, [req.params.id, ...scope.params]);
   if (!st.rows[0]) return res.status(404).json({ error: 'Magasin introuvable' });
   const summary = await storeSummary(st.rows[0]);
 

@@ -118,7 +118,8 @@ router.get('/:id/view', requireAuth, asyncRoute(async (req, res) => {
   const filePath = uploadPath(r.rows[0].stored_name);
   if (!filePath) return res.status(400).json({ error: 'Nom de fichier invalide' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier indisponible' });
-  const filename = path.basename(r.rows[0].original_name || r.rows[0].name || 'document').replace(/"/g, '');
+  const filename = path.basename(r.rows[0].original_name || r.rows[0].name || 'document').replace(/[\r\n"]/g, '') || 'document';
+  res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
   res.sendFile(filePath);
 }));
@@ -131,7 +132,9 @@ router.get('/:id/download', requireAuth, asyncRoute(async (req, res) => {
   const filePath = uploadPath(r.rows[0].stored_name);
   if (!filePath) return res.status(400).json({ error: 'Nom de fichier invalide' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier indisponible' });
-  res.download(filePath, r.rows[0].original_name);
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  const safeName = path.basename(r.rows[0].original_name || r.rows[0].name || 'document').replace(/[\r\n"]/g, '') || 'document';
+  res.download(filePath, safeName);
 }));
 
 router.delete('/:id', requireAuth, can('upload_quotes'), asyncRoute(async (req, res) => {

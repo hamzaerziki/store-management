@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { requireAuth, asyncRoute, can, scope, ownsItem, DD_ROLES } from '../middleware/auth.js';
+import { requireAuth, asyncRoute, can, scope, ownsItem, readScope, DD_ROLES } from '../middleware/auth.js';
 import { audit, notify, usersWithRoles } from '../utils/audit.js';
 import { STATUS_LABELS, progressOf } from '../utils/progress.js';
 
@@ -8,11 +8,14 @@ const router = Router();
 
 router.get('/', requireAuth, asyncRoute(async (req, res) => {
   const s = scope(req);
-  const conditions = ['1=1', ...(s.clause ? [s.clause.replace(/^AND\s*/, '')] : [])];
   const params = [...s.params];
+  const conditions = ['1=1', ...(s.clause ? [s.clause.replace(/^AND\s*/, '')] : [])];
   if (req.query.store_id) { params.push(req.query.store_id); conditions.push(`i.store_id = $${params.length}`); }
   if (req.query.category_id) { params.push(req.query.category_id); conditions.push(`i.category_id = $${params.length}`); }
   if (req.query.status) { params.push(req.query.status); conditions.push(`i.status = $${params.length}`); }
+  const access = await readScope(req, 'i.store_id', params.length + 1);
+  params.push(...access.params);
+  if (access.clause) conditions.push(access.clause.replace(/^AND\s*/, ''));
   const r = await query(
     `SELECT i.*, c.name AS category_name, st.name AS store_name, u.name AS created_by_name,
       (SELECT count(*) FROM quotes q WHERE q.item_id = i.id) AS quotes_count
@@ -28,12 +31,13 @@ router.get('/', requireAuth, asyncRoute(async (req, res) => {
 
 router.get('/:id', requireAuth, asyncRoute(async (req, res) => {
   const s = scope(req);
+  const access = await readScope(req, 'i.store_id', 2 + s.params.length);
   const r = await query(
     `SELECT i.*, c.name AS category_name, st.name AS store_name, u.name AS created_by_name FROM items i
      JOIN categories c ON c.id=i.category_id JOIN stores st ON st.id=i.store_id
      LEFT JOIN users u ON u.id=i.created_by
-     WHERE i.id=$1 ${s.clause}`,
-    [req.params.id, ...s.params]
+     WHERE i.id=$1 ${s.clause} ${access.clause}`,
+    [req.params.id, ...s.params, ...access.params]
   );
   if (!r.rows[0]) return res.status(404).json({ error: 'Article introuvable ou hors périmètre' });
   res.json({ ...r.rows[0], progress: progressOf(r.rows[0].status) });
