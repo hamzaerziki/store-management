@@ -10,7 +10,4 @@ UPDATE comparisons SET status = 'pending_cdg' WHERE status = 'pending_cg';
 
 ALTER TABLE comparisons ADD CONSTRAINT comparisons_status_check CHECK (status IN ('draft','pending_cdg','pending_dd','pending_dg','validated','rejected'));
 
-INSERT INTO users (name, email, password_hash, role, active)
-VALUES ('Direction Développement', 'dd@safari.ma', '$2a$10$lWIoZhXr3NLzZb2y1CyxZuCv05DXVO.uB2HGZrTDfg4.jyP4.PHCK', 'DD', true),
-       ('Direction Développement MG', 'dd_mg@safari.ma', '$2a$10$lWIoZhXr3NLzZb2y1CyxZuCv05DXVO.uB2HGZrTDfg4.jyP4.PHCK', 'DD-MG', true)
-ON CONFLICT (email) DO NOTHING;
+-- demo DD users removed; admin only

@@ -1,7 +1,7 @@
 ALTER TABLE users DROP CONSTRAINT IF EXISTS users_role_check;
 ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('admin','IT','MG','RMG','CDG','CG','DD','DD-IT','DD-MG','DG'));
 
-UPDATE users SET role='DD', name='Direction Développement' WHERE lower(email)='dd@safari.ma';
+-- demo DD rename removed
 
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS items_included TEXT;
 

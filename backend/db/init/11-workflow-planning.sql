@@ -6,10 +6,7 @@ ALTER TABLE validations ALTER COLUMN validator_role TYPE VARCHAR(20);
 ALTER TABLE demand_validations ALTER COLUMN validator_role TYPE VARCHAR(20);
 
 
-INSERT INTO users (name,email,password_hash,role,active)
-VALUES ('Direction Développement MG','dd_mg@safari.ma','$2a$10$lWIoZhXr3NLzZb2y1CyxZuCv05DXVO.uB2HGZrTDfg4.jyP4.PHCK','DD-MG',true)
-ON CONFLICT (email) DO NOTHING;
-
+-- demo DD users removed; admin only
 ALTER TABLE planning_tasks ADD COLUMN IF NOT EXISTS demand_id INT REFERENCES demands(id) ON DELETE SET NULL;
 ALTER TABLE planning_tasks ADD COLUMN IF NOT EXISTS amount NUMERIC(14,2) DEFAULT 0;
 ALTER TABLE planning_tasks ADD COLUMN IF NOT EXISTS department VARCHAR(10);
