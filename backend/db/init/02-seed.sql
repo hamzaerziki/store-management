@@ -1,12 +1,7 @@
 -- Safari Store Opening Tracker — seed data
 
 INSERT INTO users (name,email,password_hash,role,active) VALUES
-('Administrateur','admin@safari.ma','$2b$10$DXo3HkNGLgP8wM.e7gr7fOusIhRCzMKOdds2Kgw2K/76nM7ahSiQa','admin',true),
-('Karim Benali','it@safari.ma','$2b$10$Upp/nvVn7eG6P3SKbK9wvuYl89YRX9sGxHFeayvaQcnd.zSLvpRr2','IT',true),
-('Salma Idrissi','mg@safari.ma','$2b$10$5dU.JAh2nlcEQP.roM/FJuOOPDYNuE8O5PRPpZApZWsitSfg1WYVu','MG',true),
-('Nabil Farouk','cg@safari.ma','$2b$10$adRUEokhBWR6sjicVkLTGeo2RxL0EmO.HWII411DrkZLfZ64ZCGVa','CDG',true),
-('Direction Développement','dd@safari.ma','$2a$10$lWIoZhXr3NLzZb2y1CyxZuCv05DXVO.uB2HGZrTDfg4.jyP4.PHCK','DD',true),
-('M. Diallo','dg@safari.ma','$2b$10$TSLKqfyIaNkqVYre3PzItevWiYXcW.RamwYrCT8cIcR6d70Q3nfVK','DG',true);
+('Administrateur','admin@safari.ma','$2a$12$GBKNRM0vzY8qXM4YjRQTOe.K37j82WdfcNUw64qTyEkM54pg1HKgW','admin',true); -- default demo users removed; keep admin only
 
 INSERT INTO stores (name,city,opening_date,status,budget) VALUES
 ('Lacoste Capital Mall Rabat','Rabat','2027-01-10','at_risk',3899250);

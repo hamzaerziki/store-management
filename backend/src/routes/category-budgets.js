@@ -1,15 +1,17 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { requireAuth, asyncRoute, can } from '../middleware/auth.js';
+import { requireAuth, asyncRoute, can, readScope } from '../middleware/auth.js';
 
 const router = Router();
 
 router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => {
-  const stores = await query('SELECT id, name, budget FROM stores ORDER BY name');
-  const storeId = Number(req.query.store_id) || stores.rows[0]?.id;
+  const scope = await readScope(req, 'id', 1);
+  const stores = await query(`SELECT id, name, budget FROM stores WHERE 1=1 ${scope.clause} ORDER BY name`, scope.params);
+  const requested = Number(req.query.store_id);
+  const storeId = stores.rows.some(s => s.id === requested) ? requested : stores.rows[0]?.id;
   if (!storeId) return res.json({ stores: [], store: null, departments: [], categories: [], lines: [] });
 
-  const storeResult = await query('SELECT id, name, budget FROM stores WHERE id=$1', [storeId]);
+  const storeResult = await query(`SELECT id, name, budget FROM stores WHERE id=$1 ${scope.clause}`, [storeId, ...scope.params]);
   const store = storeResult.rows[0];
   if (!store) return res.status(404).json({ error: 'Magasin introuvable' });
 

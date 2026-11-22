@@ -50,6 +50,8 @@ try {
     await run('34-user-departments.sql');
     await run('35-category-french-smtp-settings.sql');
     await run('36-store-image-transform.sql');
+    await run('37-fix-category-mojibake.sql');
+    await run('38-remove-default-demo-users.sql');
   } else {
     await run('03-quote-extraction.sql');
     await run('04-service-items.sql');
@@ -85,6 +87,8 @@ try {
     await run('34-user-departments.sql');
     await run('35-category-french-smtp-settings.sql');
     await run('36-store-image-transform.sql');
+    await run('37-fix-category-mojibake.sql');
+    await run('38-remove-default-demo-users.sql');
     console.log('Schema already present ? migrations applied.');
   }
 } catch (e) {

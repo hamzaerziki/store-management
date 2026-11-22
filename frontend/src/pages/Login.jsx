@@ -6,14 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const demos = import.meta.env.DEV ? [
-  { role: 'admin', email: 'admin@safari.ma', pass: 'admin123', label: 'Admin', icon: ShieldCheck, color: 'violet' },
-  { role: 'IT', email: 'it@safari.ma', pass: 'it123', label: 'IT', icon: Laptop, color: 'blue' },
-  { role: 'MG', email: 'mg@safari.ma', pass: 'mg123', label: 'MG', icon: Package, color: 'amber' },
-  { role: 'CDG', email: 'cg@safari.ma', pass: 'cg123', label: 'CDG', icon: Calculator, color: 'emerald' },
-  { role: 'DD', email: 'dd@safari.ma', pass: 'dd123', label: 'DD', icon: Building2, color: 'blue' },
-  { role: 'DG', email: 'dg@safari.ma', pass: 'dg123', label: 'DG', icon: Crown, color: 'gold' },
-] : [];
+
 
 const roleColors = {
   violet: 'text-violet-700 bg-violet-500/10 border-violet-200',
@@ -60,8 +53,7 @@ export default function Login() {
     } finally { setBusy(false); }
   }
 
-  function useDemo(d) { setEmail(d.email); setPassword(d.pass); setError(''); }
-
+  
   return (
     <div className="min-h-screen flex bg-[#eef6f3]">
       {/* LEFT - CREATIVE PATH PANEL */}
@@ -196,21 +188,7 @@ export default function Login() {
               </button>
             </form>
 
-            {demos.length > 0 && (
-              <div className="mt-7 pt-6 border-t border-[#e5efea]">
-                <div className="text-[10px] uppercase tracking-wider font-extrabold text-[#8B93A1] mb-3 text-center">Accès rapide — comptes de démonstration</div>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {demos.map(d => (
-                    <button key={d.role} onClick={() => useDemo(d)} title={`${d.email} / ${d.pass}`}
-                      className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition hover:-translate-y-0.5 ${email === d.email ? roleColors[d.color] : 'border-[#e5efea] bg-white hover:border-[#cfe0d8] text-[#727A88]'}`}>
-                      <d.icon size={16} />
-                      <span className="text-[10px] font-extrabold">{d.label}</span>
-                    </button>
-                  ))}
-                </div>
-                {demos.some(d => d.email === email) && (
                   <div className="mt-3 flex items-center justify-center gap-1.5 text-[10.5px] text-[#0E7A5F] font-semibold">
-                    <Check size={12} /> Compte {demos.find(d => d.email === email)?.label} présélectionné
                   </div>
                 )}
               </div>

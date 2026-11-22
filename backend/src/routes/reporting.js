@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { requireAuth, asyncRoute, can } from '../middleware/auth.js';
+import { requireAuth, asyncRoute, can, readScope } from '../middleware/auth.js';
 import { computeStoreProgress, storeSignal } from '../utils/progress.js';
 
 const router = Router();
@@ -35,7 +35,9 @@ function applyFilters(rows, filters) {
   });
 }
 
-async function buildSummary(filters) {
+async function buildSummary(req, filters) {
+  const scope = await readScope(req, 's.id', 1);
+  const itemScope = await readScope(req, 'i.store_id', 1);
   const [storeRows, itemRows] = await Promise.all([
     query(
       `SELECT s.id, s.name, s.city, s.brand, s.code, EXTRACT(YEAR FROM s.opening_date)::int AS opening_year,
@@ -46,9 +48,10 @@ async function buildSummary(filters) {
         (SELECT COUNT(*)::int FROM risks rk WHERE rk.store_id=s.id AND rk.state NOT IN ('clos','resolu')) AS risks,
         CASE WHEN s.opening_date < CURRENT_DATE AND s.project_state NOT IN ('ouvert','cloture') THEN 1 ELSE 0 END AS delayed,
         COALESCE((SELECT ROUND(AVG(pt.progress))::int FROM planning_tasks pt WHERE pt.store_id=s.id),0) AS progress
-       FROM stores s LEFT JOIN users u ON u.id=s.owner_user_id ORDER BY s.name`
+       FROM stores s LEFT JOIN users u ON u.id=s.owner_user_id WHERE 1=1 ${scope.clause} ORDER BY s.name`,
+      scope.params
     ),
-    query(`SELECT i.store_id, i.status, ${ITEM_ESTIMATE} AS estimate FROM items i`),
+    query(`SELECT i.store_id, i.status, ${ITEM_ESTIMATE} AS estimate FROM items i WHERE 1=1 ${itemScope.clause}`, itemScope.params),
   ]);
   const statusByStore = new Map();
   storeRows.rows.forEach(store => {
@@ -93,18 +96,22 @@ async function buildSummary(filters) {
     return acc;
   }, {}));
 
+  const lotScope = await readScope(req, 'l.store_id', 1);
   const lotRows = await query(
     `SELECT l.id, l.code, l.name, l.budget, s.name AS store_name, s.brand,
       COALESCE((SELECT SUM(po.amount) FROM purchase_orders po WHERE po.lot_id=l.id AND po.state IN ('commande','recu','clos')),0) AS engaged,
       COALESCE((SELECT SUM(i.amount_ttc) FROM invoices i WHERE i.lot_id=l.id AND i.credit_note=false),0) AS invoiced,
       COALESCE((SELECT SUM(p.amount) FROM payments p JOIN invoices i ON i.id=p.invoice_id WHERE i.lot_id=l.id),0) AS paid
-     FROM lots l JOIN stores s ON s.id=l.store_id ORDER BY s.name, l.code`
+     FROM lots l JOIN stores s ON s.id=l.store_id WHERE 1=1 ${lotScope.clause} ORDER BY s.name, l.code`,
+    lotScope.params
   );
   const byLot = lotRows.rows.filter(row => !filters.brand || row.brand === filters.brand);
 
+  const trendScope = await readScope(req, 'store_id', 1);
   const trendRows = await query(
     `SELECT to_char(date_trunc('month', updated_at), 'YYYY-MM') AS month, status, count(*)::int AS count
-     FROM items GROUP BY 1,2 ORDER BY 1`
+     FROM items WHERE 1=1 ${trendScope.clause} GROUP BY 1,2 ORDER BY 1`,
+    trendScope.params
   );
   const months = [...new Set(trendRows.rows.map(row => row.month))].sort().slice(-12);
   const statuses = [...new Set(trendRows.rows.map(row => row.status))];
@@ -143,11 +150,11 @@ router.get('/filters', requireAuth, can('export_reports'), asyncRoute(async (req
 }));
 
 router.get('/summary', requireAuth, can('export_reports'), asyncRoute(async (req, res) => {
-  res.json(await buildSummary(filtersOf(req)));
+  res.json(await buildSummary(req, filtersOf(req)));
 }));
 
 router.get('/export', requireAuth, can('export_reports'), asyncRoute(async (req, res) => {
-  const data = await buildSummary(filtersOf(req));
+  const data = await buildSummary(req, filtersOf(req));
   const header = ['Magasin', 'Enseigne', 'Ville', 'Budget', 'Engagé', 'Facturé', 'Payé', 'Risques', 'Retards', 'Avancement'];
   const lines = data.by_store.map(store => [
     store.name, store.brand || 'Safari Import', store.city, store.budget, store.engaged,
