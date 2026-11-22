@@ -5,6 +5,17 @@ import { computeStoreProgress, storeSignal, progressOf, STATUS_LABELS } from '..
 
 const router = Router();
 
+router.param('id', (req, res, next, value) => {
+  if (value !== undefined && !/^[1-9][0-9]*$/.test(String(value))) return res.status(400).json({ error: 'Identifiant invalide' });
+  req.params.id = String(Number(value));
+  next();
+});
+router.param('resource', (req, res, next, value) => {
+  const allowed = new Set(['purchase_orders','invoices','payments','incidents','claims','risks']);
+  if (!allowed.has(String(value || ''))) return res.status(400).json({ error: 'Ressource invalide' });
+  next();
+});
+
 const QUOTE_ESTIMATE = `COALESCE(
   (SELECT q.amount_ht FROM comparisons c JOIN quotes q ON q.id=c.selected_quote_id
    WHERE c.item_id=i.id AND c.status IN ('validated','pending_dg') AND q.deleted_at IS NULL ORDER BY c.created_at DESC LIMIT 1),

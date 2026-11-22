@@ -4,6 +4,17 @@ import { requireAuth, asyncRoute, readScope, assignedStoreIds, GLOBAL_READ_ROLES
 
 const router = Router();
 
+router.param('id', (req, res, next, value) => {
+  if (value !== undefined && !/^[1-9][0-9]*$/.test(String(value))) return res.status(400).json({ error: 'Identifiant invalide' });
+  req.params.id = String(Number(value));
+  next();
+});
+router.param('resource', (req, res, next, value) => {
+  const allowed = new Set(['purchase_orders','invoices','payments','incidents','claims','risks']);
+  if (!allowed.has(String(value || ''))) return res.status(400).json({ error: 'Ressource invalide' });
+  next();
+});
+
 router.get('/', requireAuth, asyncRoute(async (req, res) => {
   const params = [];
   let where = '1=1';

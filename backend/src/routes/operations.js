@@ -8,6 +8,17 @@ import { publishEvent } from '../services/notification-service.js';
 
 const router = Router();
 
+router.param('id', (req, res, next, value) => {
+  if (value !== undefined && !/^[1-9][0-9]*$/.test(String(value))) return res.status(400).json({ error: 'Identifiant invalide' });
+  req.params.id = String(Number(value));
+  next();
+});
+router.param('resource', (req, res, next, value) => {
+  const allowed = new Set(['purchase_orders','invoices','payments','incidents','claims','risks']);
+  if (!allowed.has(String(value || ''))) return res.status(400).json({ error: 'Ressource invalide' });
+  next();
+});
+
 const RESOURCES = {
   lots: { table: 'lots', fields: ['store_id', 'code', 'name', 'owner_role', 'budget', 'status'] },
   purchase_orders: { table: 'purchase_orders', fields: ['store_id', 'lot_id', 'supplier_id', 'item_id', 'quote_id', 'reference', 'amount', 'state', 'ordered_at', 'planned_date', 'revision', 'currency'] },

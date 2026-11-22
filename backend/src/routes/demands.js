@@ -11,6 +11,17 @@ import { publishEvent } from '../services/notification-service.js';
 
 const router = Router();
 
+router.param('id', (req, res, next, value) => {
+  if (value !== undefined && !/^[1-9][0-9]*$/.test(String(value))) return res.status(400).json({ error: 'Identifiant invalide' });
+  req.params.id = String(Number(value));
+  next();
+});
+router.param('resource', (req, res, next, value) => {
+  const allowed = new Set(['purchase_orders','invoices','payments','incidents','claims','risks']);
+  if (!allowed.has(String(value || ''))) return res.status(400).json({ error: 'Ressource invalide' });
+  next();
+});
+
 const STAGE = {
   CDG: { from: 'pending_cdg', next: 'pending_dd', stamp: 'validated_cdg_at' },
   DD: { from: 'pending_dd', next: 'pending_dg', stamp: 'validated_dd_at' },

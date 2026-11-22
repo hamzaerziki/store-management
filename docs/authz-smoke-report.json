@@ -1,0 +1,37 @@
+[
+  {
+    "name": "admin login",
+    "ok": true,
+    "detail": 200
+  },
+  {
+    "name": "auth me",
+    "ok": true,
+    "detail": 200
+  },
+  {
+    "name": "dashboard global",
+    "ok": true,
+    "detail": 200
+  },
+  {
+    "name": "dashboard store 3",
+    "ok": true,
+    "detail": 200
+  },
+  {
+    "name": "global unauth blocked",
+    "ok": true,
+    "detail": 401
+  },
+  {
+    "name": "bad id rejected",
+    "ok": true,
+    "detail": 400
+  },
+  {
+    "name": "missing file token 404",
+    "ok": true,
+    "detail": 404
+  }
+]
