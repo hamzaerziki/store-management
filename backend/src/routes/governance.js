@@ -183,7 +183,8 @@ router.post('/change-requests/:id/decision', requireAuth, asyncRoute(async (req,
   const { decision, comment } = req.body || {};
   if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'Décision invalide' });
   if (decision === 'rejected' && !comment) return res.status(400).json({ error: 'Motif de rejet requis' });
-  const old = await query('SELECT * FROM change_requests WHERE id=$1 FOR UPDATE', [req.params.id]);
+  const access = await readScope(req, 'store_id', 2);
+  const old = await query(`SELECT * FROM change_requests WHERE id=$1 ${access.clause} FOR UPDATE`, [req.params.id, ...access.params]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Demande de changement introuvable' });
   if (Number(old.rows[0].created_by) === Number(req.user.id)) {
     return res.status(403).json({ error: 'Le créateur ne peut pas décider de sa propre demande' });
@@ -416,6 +417,7 @@ router.post('/stores/:id/reopen', requireAuth, asyncRoute(async (req, res) => {
   if (req.user.role !== 'DG') return res.status(403).json({ error: 'Réouverture réservée à DG' });
   const { reason } = req.body || {};
   if (!reason) return res.status(400).json({ error: 'Motif de réouverture obligatoire' });
+  await assertAssignment(req, req.params.id);
   const r = await query(
     'UPDATE stores SET locked_read_only=false, reopen_reason=$1 WHERE id=$2 RETURNING *',
     [reason, req.params.id]

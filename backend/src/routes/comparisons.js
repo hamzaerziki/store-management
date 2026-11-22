@@ -212,6 +212,12 @@ router.post('/auto', requireAuth, can('manage_comparisons'), asyncRoute(async (r
 }));
 
 router.get('/:id/history', requireAuth, asyncRoute(async (req, res) => {
+  const access = await readScope(req, 'i.store_id', 2);
+  const comp = await query(
+    `SELECT c.id FROM comparisons c JOIN items i ON i.id=c.item_id WHERE c.id=$1 ${access.clause}`,
+    [req.params.id, ...access.params]
+  );
+  if (!comp.rows[0]) return res.status(404).json({ error: 'Comparatif introuvable' });
   const decisions = await query(
     `SELECT v.*, u.name AS actor_name FROM validations v
      LEFT JOIN users u ON u.id=v.validator_id WHERE v.comparison_id=$1 ORDER BY v.id`,
@@ -331,13 +337,14 @@ router.post('/:id/validate', requireAuth, asyncRoute(async (req, res) => {
   const { decision, comment } = req.body || {};
   if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'Décision invalide' });
 
+  const access = await readScope(req, 'i.store_id', 2);
   const result = await tx(async client => {
     const r = await client.query(
       `SELECT c.*, i.estimated_budget, i.name AS item_name, i.store_id, i.owner_role, q.amount_ttc
        FROM comparisons c JOIN items i ON i.id=c.item_id
        LEFT JOIN quotes q ON q.id=c.selected_quote_id
-       WHERE c.id=$1 FOR UPDATE OF c`,
-      [req.params.id]
+       WHERE c.id=$1 ${access.clause} FOR UPDATE OF c`,
+      [req.params.id, ...access.params]
     );
     const cmp = r.rows[0];
     if (!cmp) throw Object.assign(new Error('Comparatif introuvable'), { status: 404 });

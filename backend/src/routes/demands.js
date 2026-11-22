@@ -164,6 +164,9 @@ router.get('/', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.get('/:id/history', requireAuth, asyncRoute(async (req, res) => {
+  const access = await readScope(req, 'd.store_id', 2);
+  const demand = await query(`SELECT d.id FROM demands d WHERE d.id=$1 ${access.clause}`, [req.params.id, ...access.params]);
+  if (!demand.rows[0]) return res.status(404).json({ error: 'Demande introuvable' });
   const decisions = await query(
     `SELECT dv.*, u.name AS actor_name FROM demand_validations dv
      LEFT JOIN users u ON u.id=dv.validator_id WHERE dv.demand_id=$1 ORDER BY dv.id`,
@@ -337,7 +340,8 @@ router.delete('/:id', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.patch('/:id/action', requireAuth, asyncRoute(async (req, res) => {
-  const old = await query('SELECT id,created_by,status FROM demands WHERE id=$1', [req.params.id]);
+  const access = await readScope(req, 'store_id', 2);
+  const old = await query(`SELECT id,created_by,status FROM demands WHERE id=$1 ${access.clause}`, [req.params.id, ...access.params]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Demande introuvable' });
   if (Number(old.rows[0].created_by) !== Number(req.user.id)) {
     return res.status(403).json({ error: 'Seul le créateur peut mettre à jour l’action' });
@@ -394,11 +398,12 @@ router.post('/:id/validate', requireAuth, asyncRoute(async (req, res) => {
   const { decision, comment } = req.body || {};
   if (!['approved', 'rejected'].includes(decision)) return res.status(400).json({ error: 'Décision invalide' });
 
+  const access = await readScope(req, 'd.store_id', 2);
   const result = await tx(async client => {
     const r = await client.query(
       `SELECT d.*, u.role AS created_by_role FROM demands d
-        LEFT JOIN users u ON u.id=d.created_by WHERE d.id=$1 FOR UPDATE OF d`,
-      [req.params.id]
+        LEFT JOIN users u ON u.id=d.created_by WHERE d.id=$1 ${access.clause} FOR UPDATE OF d`,
+      [req.params.id, ...access.params]
     );
     const demand = r.rows[0];
     if (!demand) throw Object.assign(new Error('Demande introuvable'), { status: 404 });

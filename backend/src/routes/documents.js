@@ -2,7 +2,7 @@ import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { query } from '../db.js';
-import { requireAuth, asyncRoute, can, assertAssignment } from '../middleware/auth.js';
+import { requireAuth, asyncRoute, can, assertAssignment, readScope } from '../middleware/auth.js';
 import { audit } from '../utils/audit.js';
 import { createUpload, persistUpload, uploadPath } from '../utils/upload-security.js';
 
@@ -18,25 +18,28 @@ const router = Router();
 
 router.get('/', requireAuth, asyncRoute(async (req, res) => {
   const params = [];
-  let where = '';
+  let where = '1=1';
   if (req.query.store_id) {
     params.push(req.query.store_id);
-    where = 'WHERE d.store_id = $1';
+    where += ` AND d.store_id = $${params.length}`;
   }
   if (req.query.lot_id) {
     params.push(req.query.lot_id);
-    where += `${where ? ' AND' : 'WHERE'} d.lot_id = $${params.length}`;
+    where += ` AND d.lot_id = $${params.length}`;
   }
   if (req.query.folder) {
     params.push(cleanFolder(req.query.folder));
-    where += `${where ? ' AND' : 'WHERE'} d.folder = $${params.length}`;
+    where += ` AND d.folder = $${params.length}`;
   }
+  const scope = await readScope(req, 'd.store_id', params.length + 1);
+  params.push(...scope.params);
+  where += ` ${scope.clause}`;
   const r = await query(
     `SELECT d.*, st.name AS store_name, u.name AS uploader_name
      FROM documents d
      JOIN stores st ON st.id = d.store_id
      LEFT JOIN users u ON u.id = d.uploaded_by
-     ${where}
+     WHERE ${where}
      ORDER BY d.created_at DESC`,
     params
   );
@@ -45,11 +48,14 @@ router.get('/', requireAuth, asyncRoute(async (req, res) => {
 
 router.get('/folders', requireAuth, asyncRoute(async (req, res) => {
   const params = [];
-  let where = '';
+  let where = '1=1';
   if (req.query.store_id) {
     params.push(req.query.store_id);
-    where = 'WHERE store_id = $1';
+    where += ` AND store_id = $${params.length}`;
   }
+  const scope = await readScope(req, 'store_id', params.length + 1);
+  params.push(...scope.params);
+  where += ` ${scope.clause}`;
   const r = await query(
     `SELECT id, store_id, name, count, persistent, created_by FROM (
        SELECT f.id, f.store_id, f.name, f.created_by,
@@ -61,7 +67,7 @@ router.get('/folders', requireAuth, asyncRoute(async (req, res) => {
        FROM documents d
        WHERE NOT EXISTS (SELECT 1 FROM document_folders f WHERE f.store_id = d.store_id AND f.name = d.folder)
        GROUP BY d.store_id, d.folder
-     ) folders ${where} ORDER BY name`,
+     ) folders WHERE ${where} ORDER BY name`,
     params
   );
   res.json(r.rows);

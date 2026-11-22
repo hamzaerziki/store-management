@@ -473,6 +473,7 @@ router.post('/budgets/:id/transition', requireAuth, asyncRoute(async (req, res) 
 
 router.post('/stores/:id/project-state', requireAuth, asyncRoute(async (req, res) => {
   const { to, reason } = req.body || {};
+  await assertAssignment(req, req.params.id);
   const old = await query('SELECT id,name,project_state,dd_validated_at,locked_read_only FROM stores WHERE id=$1 FOR UPDATE', [req.params.id]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Magasin introuvable' });
   if (old.rows[0].locked_read_only && !['DG'].includes(req.user.role)) {
@@ -718,6 +719,7 @@ router.put('/planning_tasks/:id', requireAuth, can('manage_operations'), asyncRo
   const { title, start_date, end_date, state, owner_role, progress, weight, depends_on, milestone, change_reason, lot_label, updated_by, execution_status } = req.body || {};
   const old = await query('SELECT * FROM planning_tasks WHERE id=$1 FOR UPDATE', [req.params.id]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Tâche de planning introuvable' });
+  await assertAssignment(req, old.rows[0].store_id);
   await assertStoreWritable(req, old.rows[0].store_id);
   const role = await effectiveRole(req, old.rows[0].store_id, old.rows[0].lot_id);
   const ownerDepartment = departmentOf(role);
