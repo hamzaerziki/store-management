@@ -158,7 +158,7 @@ export async function requireAuth(req, res, next) {
     if (Number(payload.ver || 0) !== Number(r.rows[0].token_version || 0)) {
       return res.status(401).json({ error: 'Session expirée ou invalide' });
     }
-    req.user = { id: r.rows[0].id, role: r.rows[0].role, name: r.rows[0].name || payload.name };
+    req.user = { id: r.rows[0].id, role: r.rows[0].role, name: r.rows[0].name || payload.name, ver: Number(r.rows[0].token_version || 0) };
     next();
   } catch (e) {
     return res.status(401).json({ error: 'Session expirée ou invalide' });

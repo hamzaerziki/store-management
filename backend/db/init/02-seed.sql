@@ -1,7 +1,7 @@
 -- Safari Store Opening Tracker — seed data
 
 INSERT INTO users (name,email,password_hash,role,active) VALUES
-('Administrateur','admin@safari.ma','$2a$12$GBKNRM0vzY8qXM4YjRQTOe.K37j82WdfcNUw64qTyEkM54pg1HKgW','admin',true); -- default demo users removed; keep admin only
+('Administrateur','admin@safari.ma','$2a$12$XHvTEnrJupy0p0Qb7kLhm.Y1hCQtOFg5uCmYH0wqNeEYBaY/auErW','admin',true); -- default demo users removed; keep admin only
 
 INSERT INTO stores (name,city,opening_date,status,budget) VALUES
 ('Lacoste Capital Mall Rabat','Rabat','2027-01-10','at_risk',3899250);

@@ -55,6 +55,12 @@ const pdfUpload = multer({
   },
 });
 
+async function assertFileToken(ft) {
+  if (!ft?.uid) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
+  const u = await query('SELECT id, token_version, active FROM users WHERE id=$1', [ft.uid]);
+  if (!u.rows[0]?.active) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
+  if (Number(u.rows[0].token_version || 0) !== Number(ft.ver || 0)) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
+}
 const router = Router();
 
 function isPdf(file) {
@@ -512,12 +518,13 @@ router.get('/:id/file-token', requireAuth, asyncRoute(async (req, res) => {
     params
   );
   if (!r.rows[0]) return res.status(404).json({ error: 'Devis introuvable' });
-  res.json({ token: signFileToken({ uid: req.user.id, kind: 'quote', id: r.rows[0].id, action: 'view' }), expires_in: 300 });
+  res.json({ token: signFileToken({ uid: req.user.id, kind: 'quote', id: r.rows[0].id, action: 'view', ver: req.user.ver || 0 }), expires_in: 300 });
 }));
 
 router.get('/:id/file', asyncRoute(async (req, res) => {
   const ft = verifyFileToken(req.query.ft, { kind: 'quote', id: req.params.id, action: 'view' });
   if (!ft) return res.status(401).json({ error: 'Lien de fichier invalide ou expiré' });
+  await assertFileToken(ft);
   const r = await query('SELECT file_url FROM quotes WHERE id=$1', [req.params.id]);
   const row = r.rows[0];
   if (!row?.file_url) return res.status(404).json({ error: 'Fichier introuvable' });

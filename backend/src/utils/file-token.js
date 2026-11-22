@@ -14,8 +14,8 @@ export function checkFileTokenRateLimit(uid) {
 function b64url(buf) { return Buffer.from(buf).toString('base64url'); }
 function fromB64url(str) { return Buffer.from(str, 'base64url').toString('utf8'); }
 
-export function signFileToken({ uid, kind, id, action }) {
-  const payload = { uid: Number(uid), kind: String(kind), id: Number(id), action: String(action), exp: Date.now() + TTL_MS };
+export function signFileToken({ uid, kind, id, action, ver = 0 }) {
+  const payload = { uid: Number(uid), kind: String(kind), id: Number(id), action: String(action), ver: Number(ver || 0), exp: Date.now() + TTL_MS };
   const body = b64url(JSON.stringify(payload));
   const sig = crypto.createHmac('sha256', config.jwt.secret).update(body).digest('base64url');
   return `${body}.${sig}`;
