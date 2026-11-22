@@ -148,6 +148,7 @@ router.post('/projects/:id/opening/submit', asyncV1(async (req, res) => {
   if (!DD.includes(req.user.role)) throw forbidden('Soumission du dossier de préouverture réservée au DD');
   const projectId = parseId(req.params.id, 'projet');
   const project = await getProject(projectId);
+  await assertAssignment(req, projectId);
   await assertChecklistComplete(projectId);
   const result = await tx(async client => {
     const existing = await client.query('SELECT * FROM opening_decisions WHERE project_id=$1 FOR UPDATE', [projectId]);
@@ -200,6 +201,7 @@ router.post('/projects/:id/opening/decision', asyncV1(async (req, res) => {
   if (!DG_ROLES.includes(req.user.role)) throw forbidden('Décision finale d’ouverture réservée au DG');
   const projectId = parseId(req.params.id, 'projet');
   const project = await getProject(projectId);
+  await assertAssignment(req, projectId);
   const decision = String(req.body?.decision || '').trim();
   const authorized = ['autorisee', 'approved', 'autorise'].includes(decision);
   const refused = ['refusee', 'rejected', 'refuse'].includes(decision);
@@ -269,6 +271,7 @@ router.get('/projects/:id/tax-summary', asyncV1(async (req, res) => {
   if (!FINANCIAL_READ_ROLES.includes(req.user.role)) throw forbidden('Lecture du récapitulatif TVA non autorisée');
   const projectId = parseId(req.params.id, 'projet');
   await getProject(projectId);
+  await assertAssignment(req, projectId);
   res.json(await taxSummaryForProject(projectId));
 }));
 
