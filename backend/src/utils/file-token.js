@@ -2,6 +2,14 @@ import crypto from 'crypto';
 import { config } from '../config.js';
 
 const TTL_MS = 5 * 60 * 1000;
+const hits = new Map();
+export function checkFileTokenRateLimit(uid) {
+  const key = String(uid || 'anon');
+  const now = Date.now();
+  const arr = (hits.get(key) || []).filter(t => now - t < 60_000);
+  arr.push(now); hits.set(key, arr);
+  return arr.length <= 60;
+}
 
 function b64url(buf) { return Buffer.from(buf).toString('base64url'); }
 function fromB64url(str) { return Buffer.from(str, 'base64url').toString('utf8'); }

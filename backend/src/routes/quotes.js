@@ -503,6 +503,7 @@ router.put('/:id', requireAuth, can('upload_quotes'), upload.single('file'), asy
 }));
 
 router.get('/:id/file-token', requireAuth, asyncRoute(async (req, res) => {
+  if (!checkFileTokenRateLimit(req.user.id)) return res.status(429).json({ error: 'Trop de demandes de token fichier' });
   const s = quoteScope(req);
   const access = await readScope(req, 'COALESCE(i.store_id, d.store_id)', s.params.length + 2);
   const params = [req.params.id, ...s.params, ...access.params];

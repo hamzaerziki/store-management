@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { query } from '../db.js';
 import { requireAuth, asyncRoute, can, assertAssignment, readScope } from '../middleware/auth.js';
-import { signFileToken, verifyFileToken } from '../utils/file-token.js';
+import { signFileToken, verifyFileToken, checkFileTokenRateLimit } from '../utils/file-token.js';
 import { audit } from '../utils/audit.js';
 import { createUpload, persistUpload, uploadPath } from '../utils/upload-security.js';
 
@@ -118,6 +118,7 @@ router.post('/', requireAuth, can('upload_quotes'), upload.single('file'), async
 }));
 
 router.get('/:id/file-token', requireAuth, asyncRoute(async (req, res) => {
+  if (!checkFileTokenRateLimit(req.user.id)) return res.status(429).json({ error: 'Trop de demandes de token fichier' });
   const action = req.query.action === 'download' ? 'download' : 'view';
   const r = await query('SELECT id, store_id, lot_id FROM documents WHERE id=$1', [req.params.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Fichier introuvable' });

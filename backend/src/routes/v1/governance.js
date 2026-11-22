@@ -99,6 +99,7 @@ router.get('/audit-events', asyncV1(async (req, res) => {
   if (filters.to) { params.push(filters.to); where += ` AND a.occurred_at <= $${params.length}`; }
   if (filters.project_id) {
     const projectId = parseId(filters.project_id, 'projet');
+    if (!AUDIT_READ_ROLES.includes(req.user.role)) throw forbidden('Lecture du journal d’audit non autorisée');
     params.push(projectId);
     const p = `$${params.length}`;
     where += ` AND (
