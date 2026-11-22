@@ -9,7 +9,7 @@ const LABELS = {
   pending_dg: 'Attente DG', approved: 'Approuvée', rejected: 'Rejetée',
 };
 
-const quoteFileUrl = quote => `${API_ORIGIN}/api/quotes/${quote.id}/file?token=${encodeURIComponent(getToken() || '')}`;
+const quoteFileUrl = async quote => { const r = await api(`/quotes/${quote.id}/file-token`); return `${API_ORIGIN}/api/quotes/${quote.id}/file?ft=${encodeURIComponent(r.token)}`; };
 
 function Info({ label, value }) {
   return (
@@ -95,7 +95,7 @@ export function DemandDetailsModal({ open, onClose, demand, busy = false, onAppr
                     </div>
                     <div className="mt-3 flex justify-end">
                       {quote.file_url ? (
-                        <button type="button" className="btn-ghost !py-1.5 !text-[11px]" onClick={() => setPdf({ title: quote.supplier_name || 'Devis', url: quoteFileUrl(quote) })}>
+                        <button type="button" className="btn-ghost !py-1.5 !text-[11px]" onClick={async () => { try { setPdf({ title: quote.supplier_name || 'Devis', url: await quoteFileUrl(quote) }); } catch(e){ toast.error(e.message); } }}>
                           <FileText size={14} /> Voir le PDF
                         </button>
                       ) : <span className="text-[10.5px] text-muted">Aucun PDF joint</span>}

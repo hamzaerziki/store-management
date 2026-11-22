@@ -41,7 +41,7 @@ export default function Demands() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 20;
 
-  const quoteFileUrl = quote => `${API_ORIGIN}/api/quotes/${quote.id}/file?token=${encodeURIComponent(getToken() || '')}`;
+  const openQuoteFile = async quote => { try { const r = await api(`/quotes/${quote.id}/file-token`); window.open(`${API_ORIGIN}/api/quotes/${quote.id}/file?ft=${encodeURIComponent(r.token)}`, '_blank', 'noopener,noreferrer'); } catch(e){ toast.error(e.message); } };
 
   const allowedCategory = c => {
     const role = user?.role;
@@ -258,7 +258,7 @@ export default function Demands() {
                               <FileUp size={12} className="text-emerald-600" />
                               <b>{q.supplier_name || 'Prestataire'}</b>
                               <span className="text-muted">HT {money(q.amount_ht)} {q.currency || 'MAD'} · v{q.version || 1}</span>
-                              {q.file_url && <a className="text-emerald-700 font-bold underline" href={quoteFileUrl(q)} target="_blank" rel="noreferrer">Fichier</a>}
+                              {q.file_url && <button type="button" className="text-emerald-700 font-bold underline" onClick={() => openQuoteFile(q)}>Fichier</button>}
                             </div>
                           ))}
                         </div>

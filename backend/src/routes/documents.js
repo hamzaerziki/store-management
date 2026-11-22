@@ -3,6 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { query } from '../db.js';
 import { requireAuth, asyncRoute, can, assertAssignment, readScope } from '../middleware/auth.js';
+import { signFileToken, verifyFileToken } from '../utils/file-token.js';
 import { audit } from '../utils/audit.js';
 import { createUpload, persistUpload, uploadPath } from '../utils/upload-security.js';
 
@@ -116,7 +117,18 @@ router.post('/', requireAuth, can('upload_quotes'), upload.single('file'), async
   res.status(201).json(r.rows[0]);
 }));
 
-router.get('/:id/view', requireAuth, asyncRoute(async (req, res) => {
+router.get('/:id/file-token', requireAuth, asyncRoute(async (req, res) => {
+  const action = req.query.action === 'download' ? 'download' : 'view';
+  const r = await query('SELECT id, store_id, lot_id FROM documents WHERE id=$1', [req.params.id]);
+  if (!r.rows[0]) return res.status(404).json({ error: 'Fichier introuvable' });
+  await assertAssignment(req, r.rows[0].store_id, r.rows[0].lot_id || null);
+  const token = signFileToken({ uid: req.user.id, kind: 'document', id: r.rows[0].id, action });
+  res.json({ token, expires_in: 300 });
+}));
+
+router.get('/:id/view', asyncRoute(async (req, res) => {
+  const ft = verifyFileToken(req.query.ft, { kind: 'document', id: req.params.id, action: 'view' });
+  if (!ft) return res.status(401).json({ error: 'Lien de fichier invalide ou expiré' });
   const r = await query('SELECT * FROM documents WHERE id=$1', [req.params.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Fichier introuvable' });
   await assertAssignment(req, r.rows[0].store_id, r.rows[0].lot_id || null);
@@ -130,11 +142,11 @@ router.get('/:id/view', requireAuth, asyncRoute(async (req, res) => {
   res.sendFile(filePath);
 }));
 
-router.get('/:id/download', requireAuth, asyncRoute(async (req, res) => {
+router.get('/:id/download', asyncRoute(async (req, res) => {
+  const ft = verifyFileToken(req.query.ft, { kind: 'document', id: req.params.id, action: 'download' });
+  if (!ft) return res.status(401).json({ error: 'Lien de fichier invalide ou expiré' });
   const r = await query('SELECT * FROM documents WHERE id=$1', [req.params.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Fichier introuvable' });
-  await assertAssignment(req, r.rows[0].store_id, r.rows[0].lot_id || null);
-  if (!canAccessDocument(req, r.rows[0])) return res.status(403).json({ error: 'Accès réservé au propriétaire du devis' });
   const filePath = uploadPath(r.rows[0].stored_name);
   if (!filePath) return res.status(400).json({ error: 'Nom de fichier invalide' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier indisponible' });

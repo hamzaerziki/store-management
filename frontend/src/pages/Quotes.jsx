@@ -39,7 +39,7 @@ export default function Quotes({ embedded = false, fixedStoreId = null }) {
   }, [scopeStoreId]);
   useDataRefresh(load, []);
 
-  const fileUrl = quote => `${API_ORIGIN}/api/quotes/${quote.id}/file?token=${encodeURIComponent(getToken() || '')}`;
+  const fileUrl = async quote => { const r = await api(`/quotes/${quote.id}/file-token`); return `${API_ORIGIN}/api/quotes/${quote.id}/file?ft=${encodeURIComponent(r.token)}`; };
 
   function recalcTtc(updates) {
     setForm(current => {
@@ -147,13 +147,13 @@ export default function Quotes({ embedded = false, fixedStoreId = null }) {
           <>
             {isPdfUrl(viewer.file_url) ? (
               <div className="h-[65vh] rounded-xl overflow-hidden border border-line bg-canvas">
-                <iframe title="Aperçu du devis" src={fileUrl(viewer)} className="w-full h-full border-0" />
+                <iframe title="Aperçu du devis" src={viewerUrl} className="w-full h-full border-0" />
               </div>
             ) : (
               <div className="p-8 text-center text-[12.5px] text-muted">Ce fichier n’est pas un PDF. Ouvrez-le dans un nouvel onglet pour le consulter.</div>
             )}
             <div className="flex flex-wrap items-center justify-between gap-3 pt-4">
-              <a href={fileUrl(viewer)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] font-bold text-emerald-600"><ExternalLink size={14} /> Ouvrir dans un nouvel onglet</a>
+              <a href={viewerUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px] font-bold text-emerald-600"><ExternalLink size={14} /> Ouvrir dans un nouvel onglet</a>
               <span className="text-[11px] text-muted">Catégorie IA : {viewer.classification?.is_service ? 'Prestation · ' : ''}{viewer.classification?.category_name || '—'} · confiance {Math.round((viewer.classification?.confidence || 0) * 100)}%</span>
               {viewer.extracted_data?.amount_ttc && <span className="text-[11px] text-muted">Extrait : TTC {money(viewer.extracted_data.amount_ttc)} · Garantie {viewer.extracted_data.warranty_months || 0} mois</span>}
             </div>

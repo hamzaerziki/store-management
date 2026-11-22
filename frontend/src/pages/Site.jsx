@@ -14,35 +14,35 @@ function formatBytes(value = 0) {
   return `${(value / 1024).toFixed(0)} Ko`;
 }
 
-function FileViewerModal({ open, onClose, file, viewUrl, downloadUrl }) {
+
+function DocThumb({ doc, isImage, isVideo }) {
+  const [url, setUrl] = useState('');
+  useEffect(() => { let alive=true; if(!isImage&&!isVideo){setUrl('');return;} api(`/documents/${doc.id}/file-token?action=view`).then(r=>alive&&setUrl(`${API_ORIGIN}/api/documents/${doc.id}/view?ft=${encodeURIComponent(r.token)}`)).catch(()=>{}); return ()=>{alive=false}; }, [doc.id, isImage, isVideo]);
+  if (isImage) return url ? <img src={url} alt={doc.original_name} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-slate-100" />;
+  if (isVideo) return url ? <video src={url} className="w-full h-full object-cover" muted preload="metadata" /> : <div className="w-full h-full bg-slate-900" />;
+  return <FileIcon ext={(doc.original_name||'').split('.').pop()?.toLowerCase()} />;
+}
+function FileViewerModal({ open, onClose, file }) {
+  const [urls, setUrls] = useState({ view: "", download: "" });
+  useEffect(() => { let alive=true; if(!open||!file){setUrls({view:"",download:""});return;} Promise.all([api(`/documents/${file.id}/file-token?action=view`), api(`/documents/${file.id}/file-token?action=download`)]).then(([v,d])=>{ if(!alive) return; setUrls({ view:`${API_ORIGIN}/api/documents/${file.id}/view?ft=${encodeURIComponent(v.token)}`, download:`${API_ORIGIN}/api/documents/${file.id}/download?ft=${encodeURIComponent(d.token)}` }); }).catch(()=>alive&&setUrls({view:"",download:""})); return ()=>{alive=false}; }, [open, file?.id]);
   if (!open || !file) return null;
+  const ext = (file.original_name || file.name || '').split('.').pop()?.toLowerCase();
   const mime = String(file.mime_type || '').toLowerCase();
-  const name = String(file.original_name || file.name || '').toLowerCase();
-  const isImage = mime.startsWith('image/');
-  const isVideo = mime.startsWith('video/');
-  const isPdf = mime === 'application/pdf' || name.endsWith('.pdf');
-  const is3D = /\.(glb|gltf|obj|fbx|stl|3ds|dae|ifc|dwg|dxf|skp|step|stp|ply)$/i.test(name);
+  const isImage = mime.startsWith('image/') || ['jpg','jpeg','png','webp','gif'].includes(ext);
+  const isVideo = mime.startsWith('video/') || ['mp4','webm','mov','avi'].includes(ext);
+  const isPdf = mime === 'application/pdf' || ext === 'pdf';
   return (
-    <Modal open={open} onClose={onClose} title={file.original_name || file.name || 'Document'} full>
+    <Modal open={open} onClose={onClose} title={file.original_name || file.name || "Document"} full>
       <div className="flex h-full min-h-0 flex-col">
         <div className="min-h-0 flex-1 overflow-hidden rounded-xl border border-line bg-slate-100 grid place-items-center">
-          {isPdf ? (
-            <iframe src={viewUrl} title={file.original_name} className="h-full w-full bg-white" />
-          ) : isImage ? (
-            <img src={viewUrl} alt={file.original_name} className="max-h-full max-w-full object-contain bg-white" />
-          ) : isVideo ? (
-            <video src={viewUrl} controls autoPlay className="max-h-full max-w-full bg-black" />
-          ) : (
-            <div className="text-center p-8">
-              <FileText size={42} className="text-muted mx-auto mb-3" />
-              <div className="text-[13px] font-bold text-ink mb-1">{file.original_name || 'Fichier'}</div>
-              <div className="text-[11.5px] text-muted mb-4">{is3D ? 'Aperçu 3D non disponible dans le navigateur — téléchargez le fichier pour l’ouvrir.' : 'Aperçu indisponible pour ce type de fichier — vous pouvez le télécharger.'}</div>
-            </div>
-          )}
+          {isPdf ? <iframe src={urls.view} title={file.original_name} className="h-full w-full bg-white" />
+          : isImage ? <img src={urls.view} alt={file.original_name} className="max-h-full max-w-full object-contain bg-white" />
+          : isVideo ? <video src={urls.view} controls autoPlay className="max-h-full max-w-full bg-black" />
+          : <div className="text-center p-8"><FileText size={42} className="text-muted mx-auto mb-3" /><div className="text-[13px] font-bold text-ink mb-1">{file.original_name || "Fichier"}</div></div>}
         </div>
         <div className="flex shrink-0 flex-wrap justify-end gap-2 pt-3">
-          {downloadUrl && <a href={downloadUrl} className="btn-primary" download><Download size={14} /> Télécharger</a>}
-          {viewUrl && <a href={viewUrl} target="_blank" rel="noreferrer" className="btn-ghost"><Eye size={14} /> Ouvrir dans un onglet</a>}
+          {urls.download && <a href={urls.download} className="btn-primary" download><Download size={14} /> Télécharger</a>}
+          {urls.view && <a href={urls.view} target="_blank" rel="noreferrer" className="btn-ghost"><Eye size={14} /> Ouvrir dans un onglet</a>}
           <button type="button" className="btn-ghost" onClick={onClose}><X size={14} /> Fermer</button>
         </div>
       </div>
@@ -86,9 +86,7 @@ export default function Site({ embedded = false, fixedStoreId = null }) {
   const visibleFiles = documents.filter(document => activeFolder
     ? document.folder === activeFolder
     : !document.folder || document.folder === 'Autres');
-  const viewUrl = document => `${API_ORIGIN}/api/documents/${document.id}/view?token=${encodeURIComponent(getToken() || '')}`;
-  const downloadUrl = document => `${API_ORIGIN}/api/documents/${document.id}/download?token=${encodeURIComponent(getToken() || '')}`;
-
+    
   async function createFolder(e) {
     e.preventDefault(); setError(''); setNotice(''); setBusy(true);
     const name = (folderName.trim() || folderType).trim();
@@ -145,9 +143,7 @@ export default function Site({ embedded = false, fixedStoreId = null }) {
     return (
       <div className="rounded-xl border border-line bg-white overflow-hidden hover:shadow-md transition">
         <button type="button" onClick={() => setViewerFile(document)} className="block w-full h-28 bg-canvas/70 grid place-items-center overflow-hidden">
-          {isImage ? <img src={viewUrl(document)} alt={document.original_name} className="w-full h-full object-cover" />
-            : isVideo ? <video src={viewUrl(document)} className="w-full h-full object-cover" muted preload="metadata" />
-            : <FileText size={34} className="text-muted" />}
+          {isImage||isVideo ? <DocThumb doc={document} isImage={isImage} isVideo={isVideo} /> : <FileText size={34} className="text-muted" />}
         </button>
         <div className="p-3">
           <div className="text-[11.5px] font-bold truncate" title={document.original_name}>{document.original_name}</div>
@@ -155,7 +151,7 @@ export default function Site({ embedded = false, fixedStoreId = null }) {
           <div className="flex justify-between items-center mt-2 gap-2">
             <button type="button" className="text-emerald-700 text-[11px] font-bold inline-flex items-center gap-1" onClick={() => setViewerFile(document)}><Eye size={13} /> Voir</button>
             <div className="flex items-center gap-2">
-              <a href={downloadUrl(document)} className="text-slate-600 text-[11px] font-bold inline-flex items-center gap-1" download><Download size={13} /></a>
+              <button type="button" onClick={async()=>{try{const r=await api(`/documents/${document.id}/file-token?action=download`); const a=window.document.createElement("a"); a.href=`${API_ORIGIN}/api/documents/${document.id}/download?ft=${encodeURIComponent(r.token)}`; a.download=""; a.click();}catch(e){toast.error(e.message);}}} className="text-slate-600 text-[11px] font-bold inline-flex items-center gap-1"><Download size={13} /></button>
               {(() => { const isOwner = Number(document.uploaded_by) === Number(user?.id) || Number(document.created_by) === Number(user?.id); const canDel = isOwner || can('manage_users'); return canDel ? <button className="text-red-600 text-[11px] font-bold inline-flex items-center gap-1" onClick={() => deleteFile(document)}><Trash2 size={13} /></button> : null; })()}
             </div>
           </div>
@@ -264,8 +260,8 @@ export default function Site({ embedded = false, fixedStoreId = null }) {
         open={!!viewerFile}
         onClose={() => setViewerFile(null)}
         file={viewerFile}
-        viewUrl={viewerFile ? viewUrl(viewerFile) : ''}
-        downloadUrl={viewerFile ? downloadUrl(viewerFile) : ''}
+        
+        
       />
     </>
   );

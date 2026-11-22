@@ -502,20 +502,24 @@ router.put('/:id', requireAuth, can('upload_quotes'), upload.single('file'), asy
   res.json(r.rows[0]);
 }));
 
-router.get('/:id/file', requireAuth, asyncRoute(async (req, res) => {
+router.get('/:id/file-token', requireAuth, asyncRoute(async (req, res) => {
   const s = quoteScope(req);
   const access = await readScope(req, 'COALESCE(i.store_id, d.store_id)', s.params.length + 2);
   const params = [req.params.id, ...s.params, ...access.params];
   const r = await query(
-    `SELECT q.file_url, q.uploaded_by, q.created_by FROM quotes q
-     LEFT JOIN items i ON i.id=q.item_id
-     LEFT JOIN demands d ON d.id=q.demand_id
-     WHERE q.id=$1 ${s.clause} ${access.clause}`,
+    `SELECT q.id FROM quotes q LEFT JOIN items i ON i.id=q.item_id LEFT JOIN demands d ON d.id=q.demand_id WHERE q.id=$1 ${s.clause} ${access.clause}`,
     params
   );
+  if (!r.rows[0]) return res.status(404).json({ error: 'Devis introuvable' });
+  res.json({ token: signFileToken({ uid: req.user.id, kind: 'quote', id: r.rows[0].id, action: 'view' }), expires_in: 300 });
+}));
+
+router.get('/:id/file', asyncRoute(async (req, res) => {
+  const ft = verifyFileToken(req.query.ft, { kind: 'quote', id: req.params.id, action: 'view' });
+  if (!ft) return res.status(401).json({ error: 'Lien de fichier invalide ou expiré' });
+  const r = await query('SELECT file_url FROM quotes WHERE id=$1', [req.params.id]);
   const row = r.rows[0];
   if (!row?.file_url) return res.status(404).json({ error: 'Fichier introuvable' });
-  // A1: devis visible to any authorized assigned role
   const filePath = resolveUpload(row.file_url);
   if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable' });
   const filename = path.basename(filePath).replace(/[\r\n"]/g, '') || 'devis';
