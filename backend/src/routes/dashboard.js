@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { requireAuth, asyncRoute } from '../middleware/auth.js';
+import { requireAuth, asyncRoute, readScope } from '../middleware/auth.js';;
 import { computeStoreProgress, storeSignal, progressOf, STATUS_LABELS } from '../utils/progress.js';
 
 const router = Router();

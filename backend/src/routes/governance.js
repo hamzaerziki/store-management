@@ -1,9 +1,6 @@
 import { Router } from 'express';
 import { query, tx } from '../db.js';
-import {
-  requireAuth, asyncRoute, can, DD_ROLES, assertFinancialActor,
-  assertAssignment as requireAssignment, readScope,
-} from '../middleware/auth.js';
+import { requireAuth, asyncRoute, can, DD_ROLES, assertFinancialActor, readScope, assertAssignment as requireAssignment } from '../middleware/auth.js';;
 import { audit } from '../utils/audit.js';
 import { decisionFingerprint } from '../utils/decision.js';
 import { resolveLotId } from '../utils/lots.js';
@@ -19,10 +16,6 @@ async function assertWritable(req, storeId, options = {}) {
     error.status = 403;
     throw error;
   }
-}
-
-async function assertAssignment(req, storeId, lotId = null, options = {}) {
-  return requireAssignment(req, storeId, lotId, options);
 }
 
 router.get('/summary', requireAuth, asyncRoute(async (req, res) => {

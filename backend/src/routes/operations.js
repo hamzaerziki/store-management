@@ -1,9 +1,6 @@
 import { Router } from 'express';
 import { query, tx } from '../db.js';
-import {
-  requireAuth, asyncRoute, can, DD_ROLES, VALIDATOR_ROLES, assertAssignment as requireAssignment,
-  assertFinancialActor, readScope, departmentOf,
-} from '../middleware/auth.js';
+import { requireAuth, asyncRoute, can, DD_ROLES, VALIDATOR_ROLES, assertFinancialActor, readScope, departmentOf, assertAssignment as requireAssignment } from '../middleware/auth.js';;
 import { audit } from '../utils/audit.js';
 import { decisionFingerprint } from '../utils/decision.js';
 import { resolveLotId, cleanFreeLabel } from '../utils/lots.js';
@@ -131,10 +128,6 @@ async function assertStoreWritable(req, storeId, options = {}) {
     error.status = 403;
     throw error;
   }
-}
-
-async function assertAssignment(req, storeId, lotId = null, options = {}) {
-  return requireAssignment(req, storeId, lotId, options);
 }
 
 const RISK_BANDS = [

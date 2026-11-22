@@ -123,8 +123,8 @@ export async function assertAssignment(req, storeId, lotId = null, options = {})
 }
 
 const READ_SCOPE_COLUMNS = new Set([
-  'store_id','s.id','d.store_id','i.store_id','st.id','c.store_id','oc.store_id','r.store_id','b.store_id','po.store_id','pt.store_id','cr.store_id','l.store_id','q.store_id',
-  'COALESCE(i.store_id, d.store_id)','COALESCE(i.store_id,l.store_id)','project_id','s.project_id','a.object_id'
+  'id','store_id','s.id','d.store_id','i.store_id','st.id','c.store_id','oc.store_id','r.store_id','b.store_id','po.store_id','pt.store_id','cr.store_id','l.store_id','q.store_id',
+  'COALESCE(i.store_id, d.store_id)','COALESCE(i.store_id,l.store_id)','project_id','s.project_id','a.object_id','d.id'
 ]);
 export async function readScope(req, column = 'store_id', startIndex = 1) {
   const col = String(column || '');

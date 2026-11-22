@@ -1,6 +1,6 @@
 ﻿import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
 import { query } from '../db.js';
 import { config } from '../config.js';
@@ -185,18 +185,18 @@ async function progressReport() {
 
 router.get('/reports/progress.xlsx', requireAuth, can('export_reports'), asyncRoute(async (req, res) => {
   const rows = await progressReport();
-  const data = rows.map(r => ({
-    Magasin: r.magasin, Ville: r.ville, Ouverture: String(r.ouverture).slice(0, 10),
-    Articles: r.articles, 'Progression %': r.progression,
-    'Budget MAD': Number(r.budget), 'Engagé MAD': Number(r.engage),
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Progression');
-  const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('Progression');
+  ws.columns = [
+    { header: 'Magasin', key: 'magasin' }, { header: 'Ville', key: 'ville' }, { header: 'Ouverture', key: 'ouverture' },
+    { header: 'Articles', key: 'articles' }, { header: 'Progression %', key: 'progression' },
+    { header: 'Budget MAD', key: 'budget' }, { header: 'Engagé MAD', key: 'engage' },
+  ];
+  rows.forEach(r => ws.addRow({ magasin: r.magasin, ville: r.ville, ouverture: String(r.ouverture).slice(0,10), articles: r.articles, progression: r.progression, budget: Number(r.budget), engage: Number(r.engage) }));
+  const buf = await wb.xlsx.writeBuffer();
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', 'attachment; filename="safari-progression.xlsx"');
-  res.send(buf);
+  res.send(Buffer.from(buf));
 }));
 
 router.get('/reports/progress.pdf', requireAuth, can('export_reports'), asyncRoute(async (req, res) => {
