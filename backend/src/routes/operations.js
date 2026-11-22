@@ -511,8 +511,9 @@ router.post('/stores/:id/project-state', requireAuth, asyncRoute(async (req, res
 }));
 
 router.get('/:resource', requireAuth, asyncRoute(async (req, res) => {
-  const cfg = RESOURCES[req.params.resource];
-  if (!cfg) return res.status(404).json({ error: 'Ressource inconnue' });
+  const resource = String(req.params.resource || '');
+  if (!Object.hasOwn(RESOURCES, resource)) return res.status(404).json({ error: 'Ressource inconnue' });
+  const cfg = RESOURCES[resource];
   const params = [];
   let where = '1=1';
   if (req.query.store_id) { params.push(req.query.store_id); where += ` AND store_id = $${params.length}`; }
@@ -524,7 +525,7 @@ router.get('/:resource', requireAuth, asyncRoute(async (req, res) => {
   const scope = await readScope(req, 'store_id', params.length + 1);
   params.push(...scope.params);
   where += ` ${scope.clause}`;
-  if (req.params.resource === 'planning_tasks') {
+  if (resource === 'planning_tasks') {
     const role = req.user.role;
     const allPlanning = ['admin', 'CDG', 'CG', ...DD_ROLES, 'DG'].includes(role);
     if (!allPlanning) {
@@ -544,10 +545,10 @@ router.get('/:resource', requireAuth, asyncRoute(async (req, res) => {
       }
     }
   }
-  const extra = req.params.resource === 'planning_tasks'
+  const extra = resource === 'planning_tasks'
     ? ', (SELECT name FROM lots WHERE lots.id=planning_tasks.lot_id) AS lot_name'
     : '';
-  const order = req.params.resource === 'planning_tasks' ? 'start_date NULLS LAST, id' : 'id DESC';
+  const order = resource === 'planning_tasks' ? 'start_date NULLS LAST, id' : 'id DESC';
   const r = await query(`SELECT ${cfg.table}.*${extra} FROM ${cfg.table} WHERE ${where} ORDER BY ${order}`, params);
   res.json(r.rows);
 }));

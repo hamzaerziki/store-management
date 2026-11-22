@@ -122,12 +122,18 @@ export async function assertAssignment(req, storeId, lotId = null, options = {})
   }
 }
 
+const READ_SCOPE_COLUMNS = new Set([
+  'store_id','s.id','d.store_id','i.store_id','st.id','c.store_id','oc.store_id','r.store_id','b.store_id','po.store_id','pt.store_id','cr.store_id','l.store_id','q.store_id',
+  'COALESCE(i.store_id, d.store_id)','COALESCE(i.store_id,l.store_id)','project_id','s.project_id','a.object_id'
+]);
 export async function readScope(req, column = 'store_id', startIndex = 1) {
+  const col = String(column || '');
+  if (!READ_SCOPE_COLUMNS.has(col)) throw Object.assign(new Error('Invalid scope column'), { status: 500 });
   const role = req.user?.role;
   if (GLOBAL_READ_ROLES.includes(role)) return { clause: '', params: [], all: true };
   const ids = await assignedStoreIds(req.user.id);
   if (!ids.length) return { clause: 'AND 1=0', params: [], all: false };
-  return { clause: `AND ${column} = ANY($${startIndex}::int[])`, params: [ids], all: false };
+  return { clause: `AND ${col} = ANY($${startIndex}::int[])`, params: [ids], all: false };
 }
 
 export async function requireAuth(req, res, next) {
