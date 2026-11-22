@@ -138,6 +138,7 @@ await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '32-executi
 await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '33-audit-journal.sql'), 'utf8'));
 await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '34-user-departments.sql'), 'utf8'));
 await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '35-category-french-smtp-settings.sql'), 'utf8'));
+await query(fs.readFileSync(path.join(__dirname, '..', 'db', 'init', '36-store-image-transform.sql'), 'utf8'));
 
 const server = app.listen(config.port, '0.0.0.0', () => {
   console.log(`Safari backend listening on port ${config.port}`);

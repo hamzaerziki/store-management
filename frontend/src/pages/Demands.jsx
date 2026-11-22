@@ -38,6 +38,8 @@ export default function Demands() {
   const [draftOpen, setDraftOpen] = useState(false);
   const [draftForm, setDraftForm] = useState({ title: '', description: '', amount_ht: '', vat_rate: '20', deadline: '', store_id: '', lot_label: '', kind: 'article', owner_role: '' });
   const [busy, setBusy] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
 
   const quoteFileUrl = quote => `${API_ORIGIN}/api/quotes/${quote.id}/file?token=${encodeURIComponent(getToken() || '')}`;
 
@@ -177,7 +179,7 @@ export default function Demands() {
   }
 
   const canTrackExecution = ['admin', 'IT', 'MG', 'CG', 'CDG', 'DD', 'DG'].includes(user?.role);
-  const canEditExecutionFor = row => Number(row?.created_by) === Number(user?.id);
+  const canEditExecutionFor = row => user?.role === 'admin' || Number(row?.created_by) === Number(user?.id);
   const showDept = ['admin','CDG','CG','DD','DG'].includes(user?.role);
 
   function updateDemandExecution(updated) {
@@ -189,6 +191,10 @@ export default function Demands() {
   const filteredRows = rows.filter(row => view === 'all' ? true
     : view === 'active' ? ['pending_cdg', 'pending_dd', 'pending_dg'].includes(row.status)
       : ['approved', 'rejected'].includes(row.status));
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pagedRows = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  useEffect(() => { setPage(1); }, [view, supplierFilter, rows.length]);
 
   return (
     <>
@@ -240,7 +246,7 @@ export default function Demands() {
                 <tr><th className="th">Demande</th><th className="th">Magasin</th><th className="th">Demandeur</th><th className="th">Prix HT</th><th className="th">Statut</th><th className="th">Exécution</th><th className="th">Preuve</th><th className="th">Date</th><th className="th">Action</th></tr>
               </thead>
               <tbody>
-                {filteredRows.map(row => (
+                {pagedRows.map(row => (
                   <tr key={row.id} className="hover:bg-canvas/60">
                     <td className="td">
                       <div className="text-[12.5px] font-bold">{row.title}</div>
@@ -295,6 +301,15 @@ export default function Demands() {
                 ))}
               </tbody>
             </table>
+          )}
+          {filteredRows.length > PAGE_SIZE && (
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+              <div className="text-[11px] text-muted">{filteredRows.length} demandes · page {safePage}/{totalPages}</div>
+              <div className="flex items-center gap-2">
+                <button className="btn-ghost !py-1.5 !px-3 !text-[11px]" disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Précédent</button>
+                <button className="btn-ghost !py-1.5 !px-3 !text-[11px]" disabled={safePage >= totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Suivant</button>
+              </div>
+            </div>
           )}
         </div>
       </Card>
@@ -358,9 +373,9 @@ export default function Demands() {
 
       <Modal open={!!editTarget} onClose={() => setEditTarget(null)} title={`Modifier - ${editTarget?.title || ''}`}>
         <form onSubmit={saveEdit} className="space-y-4">
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11.5px] text-emerald-900">Modification possible uniquement en brouillon, par le cr?ateur ou l?administrateur. Apr?s soumission, la demande devient non modifiable et non supprimable.</div>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11.5px] text-emerald-900">Modification possible uniquement en brouillon par le créateur ou l'administrateur. Après soumission, la demande devient non modifiable et non supprimable.</div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Magasin"><select className="input" value={editForm.store_id} onChange={e => setEditForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">S?lectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+            <Field label="Magasin"><select className="input" value={editForm.store_id} onChange={e => setEditForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">Sélectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
             <Field label="Type"><select className="input" value={editForm.kind} onChange={e => setEditForm(f => ({ ...f, kind: e.target.value }))}><option value="article">Article</option><option value="mission">Mission</option></select></Field>
           </div>
           <Field label="Intitul?"><input className="input" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required /></Field>
@@ -372,7 +387,7 @@ export default function Demands() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Lot / zone"><input className="input" value={editForm.lot_label} onChange={e => setEditForm(f => ({ ...f, lot_label: e.target.value }))} /></Field>
-            <Field label="D?partement"><select className="input" value={editForm.owner_role} onChange={e => setEditForm(f => ({ ...f, owner_role: e.target.value }))}><option value="">Automatique</option><option value="IT">IT</option><option value="MG">MG</option></select></Field>
+            <Field label="Département"><select className="input" value={editForm.owner_role} onChange={e => setEditForm(f => ({ ...f, owner_role: e.target.value }))}><option value="">Automatique</option><option value="IT">IT</option><option value="MG">MG</option></select></Field>
           </div>
           <div className="flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={() => setEditTarget(null)}>Annuler</button><button className="btn-primary" disabled={busy}>Enregistrer</button></div>
         </form>
@@ -382,7 +397,7 @@ export default function Demands() {
         <form onSubmit={saveDraft} className="space-y-4">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 text-[11.5px] text-emerald-900">Brouillon sans devis. Vous pourrez ajouter un devis ensuite ou soumettre sans devis.</div>
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Magasin"><select className="input" value={draftForm.store_id} onChange={e => setDraftForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">S?lectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
+            <Field label="Magasin"><select className="input" value={draftForm.store_id} onChange={e => setDraftForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">Sélectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
             <Field label="Type"><select className="input" value={draftForm.kind} onChange={e => setDraftForm(f => ({ ...f, kind: e.target.value }))}><option value="article">Article</option><option value="mission">Mission</option></select></Field>
           </div>
           <Field label="Intitul?"><input className="input" value={draftForm.title} onChange={e => setDraftForm(f => ({ ...f, title: e.target.value }))} required /></Field>
@@ -394,9 +409,9 @@ export default function Demands() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Field label="Lot / zone"><input className="input" value={draftForm.lot_label} onChange={e => setDraftForm(f => ({ ...f, lot_label: e.target.value }))} /></Field>
-            <Field label="D?partement"><select className="input" value={draftForm.owner_role} onChange={e => setDraftForm(f => ({ ...f, owner_role: e.target.value }))}><option value="">Automatique</option><option value="IT">IT</option><option value="MG">MG</option></select></Field>
+            <Field label="Département"><select className="input" value={draftForm.owner_role} onChange={e => setDraftForm(f => ({ ...f, owner_role: e.target.value }))}><option value="">Automatique</option><option value="IT">IT</option><option value="MG">MG</option></select></Field>
           </div>
-          <div className="flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={() => setDraftOpen(false)}>Annuler</button><button className="btn-primary" disabled={busy}>Cr?er brouillon</button></div>
+          <div className="flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={() => setDraftOpen(false)}>Annuler</button><button className="btn-primary" disabled={busy}>Créer brouillon</button></div>
         </form>
       </Modal>
 

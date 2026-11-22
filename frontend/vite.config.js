@@ -11,5 +11,17 @@ export default defineConfig({
       Pragma: 'no-cache',
       Expires: '0',
     },
+    proxy: {
+      '/api': {
+        target: process.env.VITE_PROXY_TARGET || 'http://backend:4000',
+        changeOrigin: true,
+        xfwd: true,
+      },
+      '/uploads': {
+        target: process.env.VITE_PROXY_TARGET || 'http://backend:4000',
+        changeOrigin: true,
+        xfwd: true,
+      },
+    },
   },
 });

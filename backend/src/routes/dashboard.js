@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, asyncRoute } from '../middleware/auth.js';
-import { computeStoreProgress, storeSignal, expectedProgressOn, progressOf, STATUS_LABELS } from '../utils/progress.js';
+import { computeStoreProgress, storeSignal, progressOf, STATUS_LABELS } from '../utils/progress.js';
 
 const router = Router();
 
@@ -122,7 +122,6 @@ async function storeSummary(store, itemIds = null) {
     budget: Number(store.budget), progress,
     computed_status: signal.status,
     status_reason: signal.reason,
-    expected_progress: signal.expected,
     status_override: store.status_override,
     items_count: rows.length, items_by_status: byStatus,
     engaged, estimated, days_to_opening: signal.days_to_opening,
@@ -325,7 +324,7 @@ router.get('/global', requireAuth, asyncRoute(async (req, res) => {
   ].sort((a, b) => b.amount - a.amount).slice(0, 8);
   const activity = await query('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 8');
   const trendItems = await query(
-    `SELECT i.status, i.updated_at, ${QUOTE_ESTIMATE} AS estimate FROM items i WHERE i.id = ANY($1::int[])`,
+    `SELECT i.store_id, i.status, i.updated_at, ${QUOTE_ESTIMATE} AS estimate FROM items i WHERE i.id = ANY($1::int[])`,
     [scope.itemIds]
   );
   const itemRows = trendItems.rows.map(row => ({ status: row.status, estimated_budget: row.estimate }));
@@ -349,9 +348,16 @@ router.get('/global', requireAuth, asyncRoute(async (req, res) => {
     month.setMonth(month.getMonth() - 6 + index);
     const rows = trendItems.rows.filter(row => new Date(row.updated_at) <= month);
     const progress = computeStoreProgress(rows.map(row => ({ status: row.status, estimated_budget: row.estimate })));
-    const target = stores.length
-      ? Math.round(stores.reduce((sum, store) => sum + expectedProgressOn(store.opening_date, month), 0) / stores.length)
-      : 0;
+    const byStore = new Map();
+    rows.forEach(row => {
+      const arr = byStore.get(row.store_id) || [];
+      arr.push({ status: row.status, estimated_budget: row.estimate });
+      byStore.set(row.store_id, arr);
+    });
+    const storeIds = [...byStore.keys()];
+    const target = storeIds.length
+      ? Math.round(storeIds.reduce((sum, id) => sum + computeStoreProgress(byStore.get(id) || []), 0) / storeIds.length)
+      : progress;
     return {
       month: formatter.format(month).replace('.', ''),
       progress,

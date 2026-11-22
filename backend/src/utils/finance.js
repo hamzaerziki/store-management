@@ -1,5 +1,4 @@
 import { query } from '../db.js';
-import { expectedProgressOn } from '../utils/progress.js';
 
 const APPROVED_STATES = new Set(['approuve', 'approved', 'validee', 'valide']);
 const ORDER_STATES = new Set(['autorise', 'commande', 'recu', 'clos']);
@@ -69,10 +68,6 @@ export function avancementProjet(tasks) {
   return Math.round((weighted / totalWeight) * 100) / 100;
 }
 
-export function ecartPlanning(actualProgress, theoreticalProgress) {
-  return round2(asNumber(actualProgress) - asNumber(theoreticalProgress));
-}
-
 export function retardOuverture(revisedDate, initialDate) {
   if (!revisedDate || !initialDate) return 0;
   const revised = new Date(revisedDate);
@@ -123,7 +118,6 @@ export function section8Kpis(input = {}) {
   const paid = sumWhere(input.payments);
   const remaining = resteAPayer(invoiced, paid);
   const progress = avancementProjet(input.tasks);
-  const theoretical = Number(input.theoreticalProgress) || 0;
   return {
     budget_en_vigueur: budget,
     engagement_net: engaged,
@@ -135,8 +129,6 @@ export function section8Kpis(input = {}) {
     engagement_restant_a_facturer: Math.max(0, round2(engaged - invoiced)),
     cout_final_estime: coutFinalEstime(invoiced, engaged - invoiced, input.plannedExtraWork),
     avancement_projet: progress,
-    avancement_theorique: round2(theoretical),
-    ecart_planning: ecartPlanning(progress, theoretical),
     retard_ouverture_jours: retardOuverture(input.revisedOpenDate, input.initialOpenDate),
   };
 }
@@ -263,7 +255,6 @@ export async function fetchSection8(projectId, client) {
     [projectId]
   );
   const revised = store.rows[0].revised_open_date || store.rows[0].opening_date;
-  const theoretical = expectedProgressOn(revised || store.rows[0].initial_open_date);
   const kpis = section8Kpis({
     initialBudget: budget.budget_en_vigueur,
     orders: engagement.orders,
@@ -273,12 +264,10 @@ export async function fetchSection8(projectId, client) {
     payments: paid,
     plannedExtraWork: Number(planned.rows[0]?.amount) || 0,
     tasks: [],
-    theoreticalProgress: theoretical,
-    revisedOpenDate: revised,
+        revisedOpenDate: revised,
     initialOpenDate: store.rows[0].initial_open_date,
   });
   kpis.avancement_projet = progress;
-  kpis.ecart_planning = ecartPlanning(progress, theoretical);
   kpis.risques = {
     total: risks.length,
     ouverts: risks.filter(row => !['clos', 'resolu', 'closed'].includes(String(row.state).toLowerCase())).length,

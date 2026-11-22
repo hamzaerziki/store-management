@@ -70,11 +70,12 @@ export function StatusBadge({ status }) {
 }
 
 export const EXECUTION_LABELS_FR = {
-  accepte_dg: 'Accepté DG (0%)',
+  accepte_dg: 'Validé (0%)',
   en_cours: 'En cours (50%)',
   livre: 'Livré (100%)',
   installe: 'Installé (100%)',
 };
+export const EXECUTION_EDIT_OPTIONS = ['accepte_dg', 'en_cours', 'livre'];
 
 export function ExecutionStatusSelect({ demand, disabled = false, canEdit, onChange }) {
   const [value, setValue] = useState(demand?.execution_status || 'accepte_dg');
@@ -112,11 +113,12 @@ export function ExecutionStatusSelect({ demand, disabled = false, canEdit, onCha
           onChange={e => save(e.target.value)}
           title={error || (editable ? 'Modifier le suivi d’exécution' : EXECUTION_LABELS_FR[value] || 'Suivi d’exécution')}
         >
-          {Object.entries(EXECUTION_LABELS_FR).map(([key, label]) => <option key={key} value={key}>{label}</option>)}
+          {!EXECUTION_EDIT_OPTIONS.includes(value) && <option value={value} disabled>{EXECUTION_LABELS_FR[value] || value}</option>}
+          {EXECUTION_EDIT_OPTIONS.map(key => <option key={key} value={key}>{EXECUTION_LABELS_FR[key]}</option>)}
         </select>
         <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#0E7A5F]" />
       </div>
-      {!editable && <div className="mt-1 text-[9px] text-muted">Modifiable par le demandeur</div>}
+      {!editable && <div className="mt-1 text-[9px] text-muted">Modifiable par le demandeur ou l'administrateur</div>}
       {error && <div className="mt-1 text-[9px] text-red-600">{error}</div>}
     </div>
   );

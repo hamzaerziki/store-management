@@ -61,7 +61,7 @@ export function DemandDetailsModal({ open, onClose, demand, busy = false, onAppr
             <Info label="Échéance" value={dateFR(demand.deadline)} />
             <Info label="Zone / chantier" value={demand.lot_name} />
             <Info label="Article lié" value={demand.item_name} />
-            <Info label="Suivi exécution" value={demand.status === "approved" ? (EXECUTION_LABELS_FR[demand.execution_status] || "Accepté DG (0%)") : demand.status === "rejected" ? "Rejetée" : demand.status === "draft" ? "Brouillon" : "Après validation DG"} />
+            <Info label="Suivi exécution" value={demand.status === "approved" ? (EXECUTION_LABELS_FR[demand.execution_status] || "Validé (0%)") : demand.status === "rejected" ? "Rejetée" : demand.status === "draft" ? "Brouillon" : "Après validation DG"} />
           </div>
 
           {(demand.description || demand.notes) && (

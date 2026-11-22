@@ -16,12 +16,12 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: req => `${req.ip || req.socket?.remoteAddress || 'unknown'}:${String(req.body?.email || '').trim().toLowerCase().slice(0, 120)}`,
-  message: { error: 'Trop de tentatives de connexion. Veuillez rÃ©essayer dans quelques instants.' },
+  message: { error: 'Trop de tentatives de connexion. Veuillez réessayer dans quelques instants.' },
 });
 
 function passwordError(value) {
   if (!value || String(value).length < config.security.passwordMinLength) {
-    return `Le mot de passe doit contenir au moins ${config.security.passwordMinLength} caractÃ¨res`;
+    return `Le mot de passe doit contenir au moins ${config.security.passwordMinLength} caractères`;
   }
   return null;
 }

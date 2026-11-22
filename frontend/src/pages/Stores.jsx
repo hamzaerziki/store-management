@@ -68,7 +68,7 @@ export default function Stores() {
   useEffect(() => () => { if (editPreview && editPreview.startsWith('blob:')) URL.revokeObjectURL(editPreview); }, [editPreview]);
 
   const shown = stores.filter(s => filter === 'all' || s.computed_status === filter);
-  const filters = [['all', 'Tous'], ['on_track', 'En bonne voie'], ['at_risk', '? risque'], ['en_retard', 'En retard'], ['ready', 'Pr?ts'], ['ouvert', 'Ouvert']];
+  const filters = [['all', 'Tous'], ['on_track', 'En bonne voie'], ['at_risk', 'À risque'], ['en_retard', 'En retard'], ['ready', 'Prêts'], ['ouvert', 'Ouvert']];
   const counts = Object.fromEntries(filters.map(([k]) => [k, k === 'all' ? stores.length : stores.filter(s => s.computed_status === k).length]));
 
   const resetImage = () => { setZoom(1); setPan({ x: 0, y: 0 }); dragOrigin.current = null; setDragging(false); };
@@ -84,14 +84,16 @@ export default function Stores() {
       budget: store.budget ?? '', date_change_reason: '', budget_reason: '', image: null,
     });
     setEditPreview(storeImageUrl(store) || '');
-    resetEditImage();
+    setEditZoom(Number(store.image_zoom || 1));
+    setEditPan({ x: Number(store.image_pos_x || 0), y: Number(store.image_pos_y || 0) });
+    setEditDragging(false); editDragOrigin.current = null;
   }
   function closeEdit() { setEditStore(null); setEditPreview(''); setError(''); resetEditImage(); }
   function chooseEditImage(e) {
     const file = e.target.files?.[0] || null;
     setEditForm(p => ({ ...p, image: file }));
     setEditPreview(file ? URL.createObjectURL(file) : storeImageUrl(editStore) || '');
-    resetEditImage();
+    setEditZoom(1); setEditPan({ x: 0, y: 0 }); setEditDragging(false); editDragOrigin.current = null;
   }
 
   const moveImage = (x, y) => setPan(c => ({ x: c.x + x, y: c.y + y }));
@@ -126,15 +128,21 @@ export default function Stores() {
         opening_date: editForm.opening_date,
         forecast_open_date: editForm.opening_date,
         revised_open_date: editForm.opening_date,
-        date_change_reason: editForm.date_change_reason || 'Mise ? jour magasin',
+        date_change_reason: editForm.date_change_reason || 'Mise à jour magasin',
       });
       if (budgetChanged && editForm.budget !== '') {
-        await api.put(`/stores/${editStore.id}/budget`, { budget: Number(editForm.budget), reason: editForm.budget_reason || 'Mise ? jour budget magasin' });
+        await api.put(`/stores/${editStore.id}/budget`, { budget: Number(editForm.budget), reason: editForm.budget_reason || 'Mise à jour budgétaire' });
       }
+      const transformChanged = Number(editZoom) !== Number(editStore.image_zoom || 1) || Number(editPan.x) !== Number(editStore.image_pos_x || 0) || Number(editPan.y) !== Number(editStore.image_pos_y || 0);
       if (editForm.image) {
         const payload = new FormData();
         payload.append('image', editForm.image);
+        payload.append('image_zoom', String(editZoom));
+        payload.append('image_pos_x', String(editPan.x));
+        payload.append('image_pos_y', String(editPan.y));
         await api.put(`/stores/${editStore.id}/image`, payload, { headers: { 'Content-Type': 'multipart/form-data' } });
+      } else if (transformChanged && (editPreview || editStore.image_url)) {
+        await api.put(`/stores/${editStore.id}/image`, { image_zoom: editZoom, image_pos_x: editPan.x, image_pos_y: editPan.y });
       }
       const withProgress = await api.get(`/stores/${editStore.id}`);
       setStores(current => current.map(store => store.id === editStore.id ? withProgress.data : store));
@@ -173,17 +181,17 @@ export default function Stores() {
         onPointerDown={previewUrl ? onStart : undefined} onPointerMove={previewUrl ? onDrag : undefined} onPointerUp={previewUrl ? onEnd : undefined} onPointerCancel={previewUrl ? onEnd : undefined}>
         {previewUrl ? (
           <>
-            <img src={previewUrl} alt="Aper?u du magasin" draggable={false} className="h-full w-full object-contain p-2" style={{ transform: `translate(${panVal.x}px, ${panVal.y}px) scale(${zoomVal})`, transition: draggingVal ? 'none' : 'transform 0.18s ease' }} />
+        <img src={previewUrl} alt="Aperçu du magasin" draggable={false} className="h-full w-full object-cover" style={{ transform: `translate(${panVal.x}px, ${panVal.y}px) scale(${zoomVal})`, transformOrigin: "center" }} />
             <div className="absolute right-2 top-2 flex flex-wrap justify-end gap-1 max-w-[180px]" onPointerDown={e => e.stopPropagation()}>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Zoom avant" onClick={() => onZoom(0.2)}><ZoomIn size={14} /></button>
-              <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Zoom arri?re" onClick={() => onZoom(-0.2)}><ZoomOut size={14} /></button>
+          <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Zoom arrière" onClick={() => onZoom(-0.2)}><ZoomOut size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Gauche" onClick={() => onMove(-24, 0)}><MoveLeft size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Droite" onClick={() => onMove(24, 0)}><MoveRight size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Haut" onClick={() => onMove(0, -24)}><MoveUp size={14} /></button>
               <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Bas" onClick={() => onMove(0, 24)}><MoveDown size={14} /></button>
-              <button type="button" className="btn-ghost !p-2 !rounded-xl" title="R?initialiser" onClick={onReset}><RotateCcw size={14} /></button>
+          <button type="button" className="btn-ghost !p-2 !rounded-xl" title="Réinitialiser" onClick={onReset}><RotateCcw size={14} /></button>
             </div>
-            <div className="pointer-events-none absolute bottom-2 left-2 rounded-lg bg-white/85 px-2 py-1 text-[9.5px] font-semibold text-muted">Glissez pour cadrer / d?placer</div>
+                <div className="pointer-events-none absolute bottom-2 left-2 rounded-lg bg-white/85 px-2 py-1 text-[9.5px] font-semibold text-muted">Glissez pour cadrer / déplacer</div>
           </>
         ) : (
           <div className="text-center px-4"><ImagePlus size={26} className="mx-auto text-muted" /><div className="text-[11.5px] font-semibold text-muted mt-2">Aucune image</div></div>
@@ -209,7 +217,11 @@ export default function Stores() {
           return (
             <div key={s.id} className="card p-5 hover:-translate-y-0.5 hover:shadow-lg transition relative">
               <Link to={`/stores/${s.id}`} className="block">
-                {image && <img src={image} alt={s.name} className="w-full h-32 object-cover rounded-xl mb-4" />}
+                {image && (
+                  <div className="w-full h-32 overflow-hidden rounded-xl mb-4 bg-canvas">
+                    <img src={image} alt={s.name} className="w-full h-full object-cover" style={{ transform: `translate(${Number(s.image_pos_x || 0)}px, ${Number(s.image_pos_y || 0)}px) scale(${Number(s.image_zoom || 1)})`, transformOrigin: 'center center' }} />
+                  </div>
+                )}
                 <div className="flex items-start justify-between"><BrandLogo key={s.id} name={s.name} /><StatusBadge status={s.computed_status} /></div>
                 <h3 className="font-extrabold text-[14px] mt-4">{s.name}</h3>
                 <div className="text-[10.5px] font-bold uppercase tracking-wide text-muted mt-1">{findBrand(s.name)?.label || s.brand || 'Safari'}</div>
@@ -252,10 +264,10 @@ export default function Stores() {
               <Field label="Ville"><input className="input" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} required /></Field>
               <Field label="Date d'ouverture"><input type="date" className="input" value={form.opening_date} onChange={e => setForm({ ...form, opening_date: e.target.value })} required /></Field>
             </div>
-            <Field label="Budget pr?visionnel (MAD)"><input type="number" min="0" className="input" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })} required /></Field>
+          <Field label="Budget prévisionnel (MAD)"><input type="number" min="0" className="input" value={form.budget} onChange={e => setForm({ ...form, budget: e.target.value })} required /></Field>
           </div>
           <PhotoEditor previewUrl={preview} file={form.image} zoomVal={zoom} panVal={pan} draggingVal={dragging} onChoose={chooseImage} onZoom={changeZoom} onMove={moveImage} onStart={startDrag} onDrag={dragImage} onEnd={endDrag} onReset={resetImage} />
-          <div className="md:col-span-2 flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={closeModal}>Annuler</button><button className="btn-primary">Cr?er le magasin</button></div>
+          <div className="md:col-span-2 flex justify-end gap-2 pt-2"><button type="button" className="btn-ghost" onClick={closeModal}>Annuler</button><button className="btn-primary">Créer le magasin</button></div>
         </form>
       </Modal>
 
@@ -265,15 +277,15 @@ export default function Stores() {
             <Field label="Nom du magasin"><input className="input" value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} required /></Field>
             <div className="grid grid-cols-2 gap-4">
               <Field label="Ville"><input className="input" value={editForm.city} onChange={e => setEditForm({ ...editForm, city: e.target.value })} required /></Field>
-              <Field label="Date d'ouverture (souhait?e)"><input type="date" className="input" value={editForm.opening_date} onChange={e => setEditForm({ ...editForm, opening_date: e.target.value })} required /></Field>
+          <Field label="Date d'ouverture (souhaitée)"><input type="date" className="input" value={editForm.opening_date} onChange={e => setEditForm({ ...editForm, opening_date: e.target.value })} required /></Field>
             </div>
-            <Field label="Budget pr?visionnel (MAD)"><input type="number" min="0" className="input" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} /></Field>
-            <Field label="Motif (date / modifications)"><input className="input" value={editForm.date_change_reason} onChange={e => setEditForm({ ...editForm, date_change_reason: e.target.value })} placeholder="Ex. nouveau calendrier valid?" /></Field>
-            {can('edit_budget') && <Field label="Motif r?vision budget"><input className="input" value={editForm.budget_reason} onChange={e => setEditForm({ ...editForm, budget_reason: e.target.value })} placeholder="Motif si le budget change" /></Field>}
+          <Field label="Budget prévisionnel (MAD)"><input type="number" min="0" className="input" value={editForm.budget} onChange={e => setEditForm({ ...editForm, budget: e.target.value })} disabled={!can('edit_budget')} /></Field>
+            <Field label="Motif (date / modifications)"><input className="input" value={editForm.date_change_reason} onChange={e => setEditForm({ ...editForm, date_change_reason: e.target.value })} placeholder="Ex. nouveau calendrier validé" /></Field>
+          {can('edit_budget') && <Field label="Motif révision budget"><input className="input" value={editForm.budget_reason} onChange={e => setEditForm({ ...editForm, budget_reason: e.target.value })} placeholder="Raison de la modification budgétaire" /></Field>}
             <div className="rounded-xl bg-canvas px-3 py-2 text-[11px] text-muted">Date initiale (immuable) : {dateFR(editStore?.initial_open_date || editStore?.opening_date)}</div>
           </div>
           <div>
-            <PhotoEditor previewUrl={editPreview} file={editForm.image} zoomVal={editZoom} panVal={editPan} draggingVal={editDragging} onChoose={chooseEditImage} onZoom={changeEditZoom} onMove={moveEditImage} onStart={startEditDrag} onDrag={dragEditImage} onEnd={endEditDrag} onReset={resetEditImage} label="Photo (cadre / zoom / d?placement)" />
+            <PhotoEditor previewUrl={editPreview} file={editForm.image} zoomVal={editZoom} panVal={editPan} draggingVal={editDragging} onChoose={chooseEditImage} onZoom={changeEditZoom} onMove={moveEditImage} onStart={startEditDrag} onDrag={dragEditImage} onEnd={endEditDrag} onReset={resetEditImage} label="Photo (cadre / zoom / déplacement)" />
             {editPreview && <button type="button" className="btn-ghost mt-2 w-full justify-center" onClick={removeStoreImage}><Trash2 size={14} /> Retirer la photo</button>}
           </div>
           <ErrorBox error={error} />
@@ -286,8 +298,8 @@ export default function Stores() {
         onClose={() => setDeleteTarget(null)}
         onConfirm={deleteStore}
         title="Supprimer le magasin"
-        message={`Le magasin ? ${deleteTarget?.name || ''} ? et toutes ses donn?es associ?es (demandes, documents, planning, etc.) seront supprim?s d?finitivement. Cette action est irr?versible.`}
-        confirmLabel="Supprimer d?finitivement"
+        message={`Le magasin « ${deleteTarget?.name || ''} » et toutes ses données associées (demandes, documents, planning, etc.) seront supprimées définitivement. Cette action est irréversible.`}
+        confirmLabel="Supprimer définitivement"
         danger
         busy={busy}
       />

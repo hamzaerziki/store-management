@@ -85,14 +85,14 @@ export async function sendMail({ to, subject, text }) {
 
 export async function sendTestMail(to) {
   const resolved = await getTransporter();
-  if (!resolved) throw Object.assign(new Error('SMTP non configur?'), { status: 400 });
+    if (!resolved) throw Object.assign(new Error('SMTP non configuré'), { status: 400 });
   const target = String(to || '').trim();
   if (!target) throw Object.assign(new Error('Email de test requis'), { status: 400 });
   const info = await resolved.client.sendMail({
     from: resolved.settings.from,
     to: target,
     subject: 'Test SMTP - Safari Store Management',
-    text: `Ceci est un email de test envoy? le ${new Date().toLocaleString('fr-FR')}.`,
+    text: `Ceci est un e-mail de test envoyé le ${new Date().toLocaleString('fr-FR')}.`,
   });
   return { ok: true, messageId: info.messageId };
 }

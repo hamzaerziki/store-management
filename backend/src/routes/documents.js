@@ -138,7 +138,7 @@ router.delete('/:id', requireAuth, can('upload_quotes'), asyncRoute(async (req, 
   const old = await query('SELECT * FROM documents WHERE id=$1', [req.params.id]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Fichier introuvable' });
   await assertAssignment(req, old.rows[0].store_id, old.rows[0].lot_id || null);
-  if (!canDeleteDocument(req, old.rows[0])) return res.status(403).json({ error: 'Suppression r?serv?e au propri?taire du fichier ou ? un administrateur' });
+  if (!canDeleteDocument(req, old.rows[0])) return res.status(403).json({ error: 'Suppression réservée au propriétaire du fichier ou à un administrateur' });
   const r = await query('DELETE FROM documents WHERE id=$1 RETURNING *', [req.params.id]);
   const filePath = uploadPath(r.rows[0].stored_name);
   if (!filePath) return res.status(400).json({ error: 'Nom de fichier invalide' });

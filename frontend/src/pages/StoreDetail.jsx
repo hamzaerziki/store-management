@@ -409,7 +409,7 @@ export default function StoreDetail() {
     .map(q => [String(q.supplier_id), { id: q.supplier_id, name: q.supplier_name || 'Prestataire' }])).values())
     .sort((a, b) => a.name.localeCompare(b.name));
   const canTrackExecution = ['admin', 'IT', 'MG', 'CG', 'CDG', 'DD', 'DG'].includes(user?.role);
-  const canEditExecutionFor = row => Number(row?.created_by) === Number(user?.id);
+  const canEditExecutionFor = row => user?.role === 'admin' || Number(row?.created_by) === Number(user?.id);
   const showDept = ['admin','CDG','CG','DD','DG'].includes(user?.role);
   const filteredDemands = storeDemands
     .filter(d => !search || `${d.title} ${d.kind}`.toLowerCase().includes(search.toLowerCase()))

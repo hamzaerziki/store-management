@@ -423,7 +423,7 @@ export default function Dashboard() {
 
       <section className="bento-card mb-5 p-5">
         <div className="flex items-start justify-between gap-3">
-          <div><h2 className="text-[14px] font-extrabold text-[#1E2229]">Avancement dans le temps</h2><p className="text-[11px] text-[#8B93A1]">Progression réelle des projets</p></div>
+          <div><h2 className="text-[14px] font-extrabold text-[#1E2229]">Avancement réel dans le temps</h2><p className="text-[11px] text-[#8B93A1]">Progression réelle des projets</p></div>
           <span className="bento-chip !py-1 !text-[10px]">6 derniers mois</span>
         </div>
         <div className="h-[260px] pt-2">

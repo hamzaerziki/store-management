@@ -4,7 +4,7 @@ import {
   asyncV1, forbidden, parsePagination, sendPaginated, parseFilters,
 } from '../../middleware/standard.js';
 import {
-  round2, fetchSection8, alerteBudget, ecartPlanning, retardOuverture,
+  round2, fetchSection8, alerteBudget, retardOuverture,
 } from '../../utils/finance.js';
 import { AUDIT_READ_ROLES, FINANCIAL_READ_ROLES, parseId } from './shared.js';
 
@@ -76,7 +76,6 @@ router.get('/dashboard', asyncV1(async (req, res) => {
       reste_a_payer: round2(invoiced - paid),
       cout_final_estime: sum('cout_final_estime'),
       avancement_projet: avgProgress,
-      ecart_planning: ecartPlanning(avgProgress, projects.length ? round2(projects.reduce((total, project) => total + Number(project.avancement_theorique || 0), 0) / projects.length) : 0),
       retards_ouverture: lateProjects,
       risques: risks,
     },

@@ -49,6 +49,7 @@ try {
     await run('33-audit-journal.sql');
     await run('34-user-departments.sql');
     await run('35-category-french-smtp-settings.sql');
+    await run('36-store-image-transform.sql');
   } else {
     await run('03-quote-extraction.sql');
     await run('04-service-items.sql');
@@ -83,7 +84,8 @@ try {
     await run('33-audit-journal.sql');
     await run('34-user-departments.sql');
     await run('35-category-french-smtp-settings.sql');
-    console.log('Schema already present � migrations applied.');
+    await run('36-store-image-transform.sql');
+    console.log('Schema already present ? migrations applied.');
   }
 } catch (e) {
   console.error('Migration failed:', e.message);

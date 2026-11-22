@@ -34,17 +34,8 @@ export function computeStoreProgress(rows) {
   return Math.round(weighted);
 }
 
-const PREPARATION_DAYS = 180;
-
-export function expectedProgressOn(openingDate, asOf = new Date()) {
-  const days = Math.ceil((new Date(openingDate) - new Date(asOf)) / 86400000);
-  return Math.max(0, Math.min(100, Math.round(((PREPARATION_DAYS - days) / PREPARATION_DAYS) * 100)));
-}
-
 export function storeSignal(progress, openingDate, override = null, stats = {}) {
   const days = Math.ceil((new Date(openingDate) - new Date()) / 86400000);
-  const expected = expectedProgressOn(openingDate);
-  const gap = expected - progress;
   const total = stats.total || 0;
   const installed = stats.installed || 0;
 
@@ -55,27 +46,25 @@ export function storeSignal(progress, openingDate, override = null, stats = {}) 
   } else if (days < 0 && progress >= 100) {
     status = 'ouvert';
     reason = `Magasin ouvert — progression à ${progress}%`;
-  } else if (progress >= 95 && days > 0) {
+  } else if (progress >= 100) {
     status = 'ready';
     reason = total && installed === total
       ? `Tous les articles sont installés (${installed}/${total})`
-      : `Progression ${progress}% — ${installed}/${total} articles installés`;
+      : `Progression ${progress}%`;
   } else if (days < 0) {
     status = 'en_retard';
     reason = `Ouverture dépassée de ${Math.abs(days)} jour(s) — progression à ${progress}%`;
-  } else if (gap > 20) {
-    status = 'en_retard';
-    reason = `${gap} points de retard sur la progression attendue (${expected}%)`;
-  } else if (gap > 8) {
-    status = 'at_risk';
-    reason = `${gap} points sous l'objectif de ${expected}%`;
+  } else if (progress > 0) {
+    status = 'on_track';
+    reason = `Progression réelle : ${progress}%`;
   } else {
     status = 'on_track';
-    reason = `Dans les temps : ${progress}% vs ${expected}% attendu`;
+    reason = 'Aucune progression enregistrée';
   }
-  return { status, reason, expected, gap, days_to_opening: days };
+  return { status, reason, expected: null, gap: null, days_to_opening: days };
 }
 
 export function deriveStoreStatus(progress, openingDate, override = null) {
   return storeSignal(progress, openingDate, override).status;
 }
+

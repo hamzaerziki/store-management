@@ -5,7 +5,7 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Field, Modal, ErrorBox } from '../components/ui';
 
-const LABELS = { a_faire: '? faire', en_cours: 'En cours', terminee: 'Termin?e', suspendue: 'Suspendue' };
+  const LABELS = { a_faire: 'À faire', en_cours: 'En cours', terminee: 'Terminée', suspendue: 'Suspendue' };
 const num = value => Number(value) || 0;
 const dateFR = value => value ? new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
 const iso = value => value ? new Date(value).toISOString().slice(0, 10) : '';
@@ -17,10 +17,10 @@ const EMPTY_FORM = {
 };
 
 const EXECUTION_OPTIONS = [
-  { value: 'accepte_dg', label: 'Accept? DG (0%)', progress: 0, state: 'a_faire' },
+  { value: 'accepte_dg', label: 'Validé (0%)', progress: 0, state: 'a_faire' },
   { value: 'en_cours', label: 'En cours (50%)', progress: 50, state: 'en_cours' },
-  { value: 'livre', label: 'Livr? (100%)', progress: 100, state: 'terminee' },
-  { value: 'installe', label: 'Install? (100%)', progress: 100, state: 'terminee' },
+  { value: 'livre', label: 'Livré (100%)', progress: 100, state: 'terminee' },
+  { value: 'installe', label: 'Installé (100%)', progress: 100, state: 'terminee' },
 ];
 
 function rangeFromTasks(tasks) {
@@ -163,9 +163,9 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
     const p = progressOfTask(t);
     const late = delayOf(t) > 0 && !isDone(t);
     if (late) return { bar: 'bg-red-500', chip: 'En retard', chipClass: 'bg-red-50 text-red-700' };
-    if (isDone(t)) return { bar: 'bg-emerald-500', chip: 'Termin?e 100%', chipClass: 'bg-emerald-50 text-emerald-700' };
+    if (isDone(t)) return { bar: 'bg-emerald-500', chip: 'Terminée 100%', chipClass: 'bg-emerald-50 text-emerald-700' };
     if (p > 0 || t.state === 'en_cours') return { bar: 'bg-sky-500', chip: 'En cours 50%', chipClass: 'bg-sky-50 text-sky-700' };
-    return { bar: 'bg-slate-400', chip: 'Accept? DG 0%', chipClass: 'bg-slate-100 text-slate-600' };
+    return { bar: 'bg-slate-400', chip: 'Validé 0%', chipClass: 'bg-slate-100 text-slate-600' };
   }
 
   function openCreate() { setForm({ ...EMPTY_FORM, store_id: scopeStoreId, lot_label: zone, start_date: new Date().toISOString().slice(0, 10) }); setModal(true); }
@@ -181,15 +181,15 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
     const opt = EXECUTION_OPTIONS.find(o => o.value === form.execution_status) || EXECUTION_OPTIONS[0];
     const payload = { title: form.title, store_id: scopeStoreId || form.store_id, lot_label: form.lot_label || null, start_date: form.start_date || null, end_date: form.end_date || null, owner_role: form.owner_role || null, execution_status: opt.value, progress: opt.progress, state: opt.state, weight: num(form.weight) || 1, depends_on: form.depends_on || null, milestone: !!form.milestone, change_reason: form.change_reason || null };
     try {
-      if (form.id) { await api.put(`/operations/planning_tasks/${form.id}`, payload); setNotice('T?che mise ? jour'); }
-      else { await api.post('/operations/planning_tasks', payload); setNotice('T?che cr??e'); }
+      if (form.id) { await api.put(`/operations/planning_tasks/${form.id}`, payload); setNotice('Tâche mise à jour'); }
+      else { await api.post('/operations/planning_tasks', payload); setNotice('Tâche créée'); }
       setModal(false); setForm({ ...EMPTY_FORM, store_id: scopeStoreId || '' }); load();
     } catch (e) { setError(e); }
   }
 
   const tabs = [
     { id: 'gantt', label: 'Gantt', icon: CalendarRange, count: gantTasks.length },
-    { id: 'tasks', label: 'T?ches', icon: ClipboardList, count: shown.length },
+    { id: 'tasks', label: 'Tâches', icon: ClipboardList, count: shown.length },
     { id: 'versions', label: 'Versions', icon: History, count: versions.length },
   ];
 
@@ -202,12 +202,12 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
           <div>
             <div className="bento-chip mb-3"><CalendarRange size={13} className="text-[#0E7A5F]" /> Pilotage planning</div>
             <h1 className="text-[24px] font-extrabold tracking-tight text-[#1E2229]">Planning</h1>
-            <p className="mt-1 text-[12.5px] text-[#727A88]">Gantt, d?pendances, jalons, lignes de base et r?visions</p>
+            <p className="mt-1 text-[12.5px] text-[#727A88]">Gantt, dépendances, jalons, lignes de base et révisions</p>
           </div>
-          {can('manage_operations') && <button className="bento-btn bento-btn-primary" onClick={openCreate}><Plus size={15} /> Nouvelle t?che</button>}
+          {can('manage_operations') && <button className="bento-btn bento-btn-primary" onClick={openCreate}><Plus size={15} /> Nouvelle tâche</button>}
         </div>
       )}
-      {embedded && can('manage_operations') && <div className="mb-4 flex justify-end"><button className="bento-btn bento-btn-primary" onClick={openCreate}><Plus size={15} /> Nouvelle t?che</button></div>}
+      {embedded && can('manage_operations') && <div className="mb-4 flex justify-end"><button className="bento-btn bento-btn-primary" onClick={openCreate}><Plus size={15} /> Nouvelle tâche</button></div>}
       <ErrorBox error={error} />
       {notice && <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50/80 px-4 py-3 text-[12px] font-semibold text-emerald-700">{notice}</div>}
 
@@ -216,9 +216,9 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
           {!fixedStoreId && <select className="bento-select w-52" value={storeId} onChange={e => { setStoreId(e.target.value); setZone(''); }}><option value="">Tous les magasins</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>}
           <input className="bento-input w-52" value={zone} onChange={e => setZone(e.target.value)} placeholder="Filtrer par zone / lot?" />
           <select className="bento-select w-44" value={owner} onChange={e => setOwner(e.target.value)}><option value="">Tous les responsables</option>{owners.map(o => <option key={o} value={o}>{o}</option>)}</select>
-          <input className="bento-input w-56" value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une t?che?" />
+          <input className="bento-input w-56" value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une tâche…" />
           <select className="bento-select w-44" value={statusView} onChange={e => setStatusView(e.target.value)}>
-            <option value="active">Actives (d?faut)</option><option value="in_progress">En cours (50%)</option><option value="not_started">Accept? DG (0%)</option><option value="late">En retard</option><option value="done">Termin?es (100%)</option><option value="all">Toutes</option>
+            <option value="active">Actives (défaut)</option><option value="in_progress">En cours (50%)</option><option value="not_started">Validé (0%)</option><option value="late">En retard</option><option value="all">Tout</option>
           </select>
           <div className="ml-auto flex flex-wrap items-center gap-3 text-[10.5px] text-[#8B93A1]">
             <span className="flex items-center gap-1.5"><i className="w-5 h-3 rounded bg-slate-400 inline-block" /> 0%</span>
@@ -230,11 +230,11 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Kpi label="Affich?es" value={gantTasks.length} sub={`sur ${shown.length} t?che(s)`} />
+        <Kpi label="Affichées" value={gantTasks.length} sub={`sur ${shown.length} tâche(s)`} />
         <Kpi label="En cours (50%)" value={gantTasks.filter(t => progressOfTask(t) > 0 && !isDone(t)).length} tone="#0284c7" />
-        <Kpi label="Termin?es (100%)" value={gantTasks.filter(t => isDone(t)).length} tone="#0E7A5F" />
+        <Kpi label="Terminées (100%)" value={gantTasks.filter(t => isDone(t)).length} tone="#0E7A5F" />
         <Kpi label="En retard" value={gantTasks.filter(t => delayOf(t) > 0 && !isDone(t)).length} tone="#dc2626" />
-        <Kpi label="Zones / lots" value={groups.length} sub="group?s" />
+        <Kpi label="Zones / lots" value={groups.length} sub="groupés" />
       </div>
 
       <div className="bento-card overflow-hidden">
@@ -247,17 +247,17 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
         </div>
         <div className="p-5">
           {tab === 'gantt' && (
-            gantTasks.length === 0 ? <div className="py-10 text-center text-[12px] text-[#8B93A1]">Aucune t?che pour ces filtres</div> : (
+            gantTasks.length === 0 ? <div className="py-10 text-center text-[12px] text-[#8B93A1]">Aucune tâche pour ces filtres</div> : (
               <div className="space-y-4">
                 <div className="flex flex-wrap items-center gap-2 text-[10.5px]">
-                  <span className="bento-chip">Vue group?e par zone</span>
-                  <button className="bento-btn !py-1.5 !px-2.5 !text-[10.5px]" onClick={() => setCollapsedGroups({})}>Tout d?plier</button>
+                  <span className="bento-chip">Vue groupée par zone</span>
+                  <button className="bento-btn !py-1.5 !px-2.5 !text-[10.5px]" onClick={() => setCollapsedGroups({})}>Tout déplier</button>
                   <button className="bento-btn !py-1.5 !px-2.5 !text-[10.5px]" onClick={() => setCollapsedGroups(Object.fromEntries(groups.map(g => [g.name, true])))}>Tout replier</button>
                 </div>
                 <div className="overflow-x-auto rounded-2xl border border-white/70 bg-white/40">
                   <div style={boardStyle}>
                     <div className="sticky top-0 z-10 flex border-b border-line bg-[#f7fbf9]/95 backdrop-blur">
-                      <div className="w-72 shrink-0 px-3 py-2 text-[10.5px] font-extrabold uppercase tracking-wider text-[#8B93A1]">Zone / t?che</div>
+                      <div className="w-72 shrink-0 px-3 py-2 text-[10.5px] font-extrabold uppercase tracking-wider text-[#8B93A1]">Zone / tâche</div>
                       <div className="flex-1 grid" style={gridStyle}>{range.months.map(m => <div key={m.toISOString()} className="px-2 py-2 text-center text-[10.5px] font-bold text-[#8B93A1] border-l border-line/70">{m.toLocaleDateString('fr-FR', { month: 'short', year: '2-digit' })}</div>)}</div>
                     </div>
                     {groups.map(group => {
@@ -289,7 +289,7 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
                                 <div className="relative flex-1 h-14 grid" style={gridStyle}>
                                   {range.months.map(m => <div key={m.toISOString()} className="border-l border-line/40" />)}
                                   {(t.baseline_start_date || t.baseline_end_date) && <div className="absolute top-[11px] h-1 rounded bg-slate-500/40" style={barStyle(t.baseline_start_date || t.start_date, t.baseline_end_date || t.end_date)} />}
-                                  <div className={`absolute top-[18px] h-4 rounded-md flex items-center justify-center shadow-sm ring-1 ring-white/60 ${tone.bar}`} style={barStyle(t.start_date, t.end_date)} title={`${t.title} ? ${tone.chip}`}>
+                                  <div className={`absolute top-[18px] h-4 rounded-md flex items-center justify-center shadow-sm ring-1 ring-white/60 ${tone.bar}`} style={barStyle(t.start_date, t.end_date)} title={`${t.title} ? ${tone.chip} ? D?but: ${dateFR(t.start_date)} ? Fin: ${dateFR(t.end_date)}`}>
                                     <span className="text-[9px] font-extrabold text-white truncate px-1">{progressOfTask(t)}%</span>
                                   </div>
                                   {t.milestone && <div className="absolute top-[16px] w-3 h-3 rotate-45 bg-amber-500 border border-white" style={{ left: `calc(${pos(t.start_date)}% - 6px)` }} />}
@@ -309,10 +309,10 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
           )}
 
           {tab === 'tasks' && (
-            shown.length === 0 ? <div className="py-10 text-center text-[12px] text-[#8B93A1]">Aucune t?che</div> : (
+            shown.length === 0 ? <div className="py-10 text-center text-[12px] text-[#8B93A1]">Aucune tâche</div> : (
               <div className="overflow-x-auto">
                 <table className="w-full">
-                  <thead><tr><th className="bento-th">T?che</th><th className="bento-th">Magasin / Zone</th><th className="bento-th">D?but</th><th className="bento-th">Fin</th><th className="bento-th">Ligne de base</th><th className="bento-th">Retard</th><th className="bento-th">Avancement</th><th className="bento-th">Actions</th></tr></thead>
+                  <thead><tr><th className="bento-th">Tâche</th><th className="bento-th">Magasin / Zone</th><th className="bento-th">Début</th><th className="bento-th">Fin</th><th className="bento-th">Statut</th><th className="bento-th">Avancement</th><th className="bento-th">Base</th><th className="bento-th w-24">Actions</th></tr></thead>
                   <tbody>
                     {shown.map(t => (
                       <tr key={t.id} className="hover:bg-white/50">
@@ -340,15 +340,15 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
           {tab === 'versions' && (
             <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div><h3 className="text-[14px] font-extrabold text-[#1E2229]">Historique des versions</h3><p className="text-[11px] text-[#8B93A1]">R?visions de dates et d'avancement avec motif</p></div>
-                <select className="bento-select w-64" value={selectedTaskId} onChange={e => setSelectedTaskId(e.target.value)}><option value="">Choisir une t?che?</option>{tasks.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}</select>
+                <div><h3 className="text-[14px] font-extrabold text-[#1E2229]">Historique des versions</h3><p className="text-[11px] text-[#8B93A1]">Révisions de dates et d'avancement avec motif</p></div>
+                <select className="bento-select w-64" value={selectedTaskId} onChange={e => setSelectedTaskId(e.target.value)}><option value="">Choisir une tâche…</option>{tasks.map(t => <option key={t.id} value={t.id}>{t.store_name} ? {t.name}</option>)}</select>
               </div>
-              {!selectedTaskId ? <div className="py-8 text-center text-[12px] text-[#8B93A1]">S?lectionnez une t?che</div> : (
+              {!selectedTaskId ? <div className="py-8 text-center text-[12px] text-[#8B93A1]">Sélectionnez une tâche</div> : (
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead><tr><th className="bento-th">R?vision</th><th className="bento-th">D?but</th><th className="bento-th">Fin</th><th className="bento-th">Avancement</th><th className="bento-th">Auteur</th><th className="bento-th">Motif</th><th className="bento-th">Date</th></tr></thead>
+                    <thead><tr><th className="bento-th">Révision</th><th className="bento-th">Début</th><th className="bento-th">Fin</th><th className="bento-th">Avancement</th><th className="bento-th">Par</th><th className="bento-th">Motif</th><th className="bento-th">Date</th></tr></thead>
                     <tbody>
-                      {versions.length === 0 && <tr><td colSpan="7" className="bento-td text-center text-[#8B93A1] py-8">Aucune version enregistr?e</td></tr>}
+                      {versions.length === 0 && <tr><td colSpan="7" className="bento-td text-center text-[#8B93A1] py-8">Aucune version enregistrée</td></tr>}
                       {versions.map(v => (
                         <tr key={v.id} className="hover:bg-white/50">
                           <td className="bento-td font-bold">v{v.revision}</td>
@@ -369,27 +369,27 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
         </div>
       </div>
 
-      <Modal open={modal} onClose={() => setModal(false)} title={form.id ? 'Modifier la t?che' : 'Nouvelle t?che de planning'} wide>
+      <Modal open={modal} onClose={() => setModal(false)} title={form.id ? 'Modifier la tâche' : 'Nouvelle tâche de planning'} wide>
         <form onSubmit={save} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
             <Field label="Intitul?" className="md:col-span-2"><input className="bento-input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required /></Field>
             {!fixedStoreId && <Field label="Magasin"><select className="bento-select" value={form.store_id} onChange={e => setForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">Choisir?</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>}
-            <Field label="Zone / chantier (libre)"><input className="bento-input" value={form.lot_label} onChange={e => setForm(f => ({ ...f, lot_label: e.target.value }))} placeholder="Ex. G?nie civil, enseigne?" /></Field>
-            <Field label="Date de d?but"><input type="date" className="bento-input" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required /></Field>
+            <Field label="Zone / chantier (libre)"><input className="bento-input" value={form.lot_label} onChange={e => setForm(f => ({ ...f, lot_label: e.target.value }))} placeholder="Ex. Génie civil, enseigne?" /></Field>
+            <Field label="Date de début"><input type="date" className="bento-input" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required /></Field>
             <Field label="Date de fin"><input type="date" className="bento-input" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} required /></Field>
             <Field label="Responsable"><input className="bento-input" value={form.owner_role} onChange={e => setForm(f => ({ ...f, owner_role: e.target.value }))} placeholder="Ex. IT, MG, RMG?" /></Field>
-            <Field label="Statut d'ex?cution">
+            <Field label="Statut d'exécution">
               <select className="bento-select" value={form.execution_status} onChange={e => { const opt = EXECUTION_OPTIONS.find(o => o.value === e.target.value) || EXECUTION_OPTIONS[0]; setForm(f => ({ ...f, execution_status: opt.value, progress: opt.progress, state: opt.state })); }}>
                 {EXECUTION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-              <div className="mt-1 text-[10px] text-[#8B93A1]">Accept? DG = 0% ? En cours = 50% ? Livr?/Install? = 100%</div>
+              <div className="mt-1 text-[10px] text-[#8B93A1]">Validé (0%) ? En cours (50%) ? Livré/Installé (100%)</div>
             </Field>
             <Field label="Poids"><input type="number" min="1" className="bento-input" value={form.weight} onChange={e => setForm(f => ({ ...f, weight: e.target.value }))} /></Field>
-            <Field label="D?pend de"><select className="bento-select" value={form.depends_on} onChange={e => setForm(f => ({ ...f, depends_on: e.target.value }))}><option value="">Aucune d?pendance</option>{tasks.filter(t => (!scopeStoreId || String(t.store_id) === String(scopeStoreId)) && (!form.id || String(t.id) !== String(form.id))).map(t => <option key={t.id} value={t.id}>{t.title}</option>)}</select></Field>
+            <Field label="Dépend de"><select className="bento-select" value={form.depends_on} onChange={e => setForm(f => ({ ...f, depends_on: e.target.value }))}><option value="">Aucune dépendance</option>{tasks.filter(t => !form.id || t.id !== form.id).map(t => <option key={t.id} value={t.id}>{t.store_name} ? {t.name}</option>)}</select></Field>
             <Field label="Jalon"><select className="bento-select" value={form.milestone ? 'true' : 'false'} onChange={e => setForm(f => ({ ...f, milestone: e.target.value === 'true' }))}><option value="false">Non</option><option value="true">Oui</option></select></Field>
             <Field label="Motif de modification" className="md:col-span-2"><textarea className="bento-input min-h-[80px]" value={form.change_reason} onChange={e => setForm(f => ({ ...f, change_reason: e.target.value }))} placeholder="Motif du changement?" /></Field>
           </div>
-          <div className="flex justify-end gap-2 pt-2"><button type="button" className="bento-btn" onClick={() => setModal(false)}>Annuler</button><button className="bento-btn bento-btn-primary">{form.id ? 'Enregistrer les modifications' : 'Cr?er la t?che'}</button></div>
+          <div className="flex justify-end gap-2 pt-2"><button type="button" className="bento-btn" onClick={() => setModal(false)}>Annuler</button><button className="bento-btn bento-btn-primary">{form.id ? 'Enregistrer les modifications' : 'Créer la tâche'}</button></div>
         </form>
       </Modal>
     </div>

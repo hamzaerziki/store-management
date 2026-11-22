@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import {
   Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck, Laptop, Package,
-  Calculator, Crown, AlertCircle, Check, Sparkles, Building2, LockKeyhole,
+  Calculator, Crown, AlertCircle, Check, Sparkles, Building2, LockKeyhole, Store, Route,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -16,12 +16,19 @@ const demos = import.meta.env.DEV ? [
 ] : [];
 
 const roleColors = {
-  violet: 'text-violet-600 bg-violet-500/10 border-violet-200',
-  blue: 'text-blue-600 bg-blue-500/10 border-blue-200',
-  amber: 'text-amber-600 bg-amber-500/10 border-amber-200',
-  emerald: 'text-emerald-600 bg-emerald-500/10 border-emerald-200',
-  gold: 'text-gold-500 bg-gold-500/10 border-gold-200',
+  violet: 'text-violet-700 bg-violet-500/10 border-violet-200',
+  blue: 'text-blue-700 bg-blue-500/10 border-blue-200',
+  amber: 'text-amber-700 bg-amber-500/10 border-amber-200',
+  emerald: 'text-emerald-700 bg-emerald-500/10 border-emerald-200',
+  gold: 'text-[#8A6420] bg-[#D8A441]/10 border-[#D8A441]/30',
 };
+
+const journey = [
+  { step: '01', title: 'Demande', desc: 'Création & devis', x: 8, y: 72 },
+  { step: '02', title: 'Validation', desc: 'CDG · DD · DG', x: 34, y: 48 },
+  { step: '03', title: 'Exécution', desc: 'Commande & suivi', x: 62, y: 58 },
+  { step: '04', title: 'Ouverture', desc: 'Magasin prêt', x: 88, y: 28 },
+];
 
 export default function Login() {
   const { login, user } = useAuth();
@@ -37,7 +44,6 @@ export default function Login() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { if (email) localStorage.setItem('safari_last_email', email); }, [email]);
-
   if (user) return <Navigate to={from} replace />;
 
   async function submit(e) {
@@ -51,89 +57,104 @@ export default function Login() {
       navigate(from, { replace: true });
     } catch (e) {
       setError(typeof e === 'string' ? e : 'Identifiants incorrects. Réessayez.');
-    } finally {
-      setBusy(false);
-    }
+    } finally { setBusy(false); }
   }
 
-  function useDemo(d) {
-    setEmail(d.email);
-    setPassword(d.pass);
-    setError('');
-  }
+  function useDemo(d) { setEmail(d.email); setPassword(d.pass); setError(''); }
 
   return (
-    <div className="min-h-screen flex bg-canvas">
-      {/* LEFT BRAND PANEL */}
-      <div className="hidden lg:flex relative w-1/2 flex-col justify-between overflow-hidden bg-gradient-to-br from-forest-700 via-forest-900 to-[#061814] text-white p-14">
-        <div className="absolute inset-0 opacity-[0.07]" style={{
-          backgroundImage: 'radial-gradient(circle at 20% 30%, #e8bc63 0, transparent 45%), radial-gradient(circle at 80% 75%, #2dc79a 0, transparent 40%)',
-        }} />
-        <svg className="absolute -right-20 top-10 opacity-[0.06]" width="420" height="420" viewBox="0 0 420 420" fill="none" stroke="white">
-          <circle cx="210" cy="210" r="180" /><circle cx="210" cy="210" r="140" /><circle cx="210" cy="210" r="100" />
-          <path d="M210 30v360M30 210h360" />
-        </svg>
+    <div className="min-h-screen flex bg-[#eef6f3]">
+      {/* LEFT - CREATIVE PATH PANEL */}
+      <div className="hidden lg:flex relative w-[52%] flex-col overflow-hidden bg-[#072f27] text-white p-12 xl:p-14">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_15%,rgba(216,164,65,0.22),transparent_42%),radial-gradient(ellipse_at_80%_80%,rgba(14,122,95,0.45),transparent_45%),linear-gradient(160deg,#0d5a47_0%,#083a30_45%,#051f1a_100%)]" />
+        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.15) 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
+        <div className="absolute -left-24 top-1/3 h-72 w-72 rounded-full bg-[#D8A441]/10 blur-3xl" />
+        <div className="absolute right-0 bottom-0 h-96 w-96 rounded-full bg-[#0E7A5F]/20 blur-3xl" />
 
-        <div className="relative flex items-center gap-3">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-500 grid place-items-center shadow-lg shadow-gold-500/20">
-            <svg viewBox="0 0 24 24" className="w-6 h-6 text-forest-900" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M12 2c3 3.5 4.5 7 4.5 10a4.5 4.5 0 0 1-9 0C7.5 9 9 5.5 12 2Z" /><path d="M12 22v-6M8 18l4-2 4 2" />
-            </svg>
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-14 h-14 rounded-2xl bg-white/95 p-1.5 shadow-lg shadow-black/10 border border-white/20">
+              <img src="/logo-1707950070.jpg" alt="Safari" className="w-full h-full object-contain rounded-xl" />
+            </div>
+            <div>
+              <div className="font-extrabold text-xl tracking-wide leading-none">SAFARI</div>
+              <div className="text-[10px] uppercase tracking-[.22em] text-emerald-100/65 mt-1.5">Store Management</div>
+            </div>
           </div>
-          <div>
-            <div className="font-extrabold text-lg tracking-wide leading-none">SAFARI</div>
-            <div className="text-[9px] uppercase tracking-[.22em] text-emerald-200/60 mt-1.5">Import · Export</div>
+          <div className="hidden xl:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/8 border border-white/12 text-[#F3D48B] text-[11px] font-bold backdrop-blur-sm">
+            <Route size={13} /> Parcours d&apos;ouverture
           </div>
         </div>
 
-        <div className="relative max-w-lg">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-500/10 border border-gold-500/20 text-gold-400 text-[11px] font-bold mb-6">
-            <Sparkles size={13} /> Espace de travail 2026
+        <div className="relative flex-1 flex flex-col justify-center py-10">
+          <div className="inline-flex w-fit items-center gap-2 px-3 py-1.5 rounded-full bg-[#D8A441]/15 border border-[#D8A441]/25 text-[#F3D48B] text-[11px] font-bold mb-6">
+            <Sparkles size={13} /> Du besoin à l&apos;ouverture
           </div>
-          <h1 className="text-[42px] leading-[1.12] font-extrabold tracking-tight">
-            Chaque ouverture,<br /><span className="text-gold-400">sous contrôle.</span>
+          <h1 className="text-[42px] xl:text-[52px] leading-[1.06] font-extrabold tracking-tight max-w-xl">
+            Chaque projet suit
+            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-[#F3D48B] via-[#D8A441] to-[#F3D48B]">son chemin.</span>
           </h1>
-          <p className="text-emerald-50/60 mt-5 text-[15px] leading-relaxed max-w-md">
-            Centralisez les devis, comparez les offres, validez les achats et suivez l'avancement de vos magasins en temps réel.
+          <p className="text-emerald-50/72 mt-5 text-[15px] leading-relaxed max-w-lg">
+            Une plateforme unique pour orchestrer les demandes, validations, budgets et planning — quel que soit le nombre de magasins.
           </p>
 
-          <div className="mt-9 space-y-3">
-            {[
-              { icon: Building2, text: '7 magasins suivis en temps réel' },
-              { icon: ShieldCheck, text: 'Validation CDG → DD → DG avec piste d\'audit complète' },
-              { icon: LockKeyhole, text: 'Accès sécurisé selon votre rôle' },
-            ].map(f => (
-              <div key={f.text} className="flex items-center gap-3 text-[13px] text-emerald-50/80">
-                <div className="w-7 h-7 rounded-lg bg-white/10 grid place-items-center text-gold-400"><f.icon size={14} /></div>
-                {f.text}
-              </div>
-            ))}
+          {/* Journey path */}
+          <div className="mt-10 relative rounded-[28px] border border-white/10 bg-white/[0.04] backdrop-blur-sm p-6 xl:p-7 overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-b from-white/[0.03] to-transparent" />
+            <svg className="absolute inset-0 w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="pathGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#D8A441" stopOpacity="0.25" />
+                  <stop offset="50%" stopColor="#F3D48B" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#D8A441" stopOpacity="0.95" />
+                </linearGradient>
+                <filter id="glow"><feGaussianBlur stdDeviation="1.2" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+              </defs>
+              <path d="M 8 72 C 20 72, 22 48, 34 48 C 46 48, 50 58, 62 58 C 74 58, 76 28, 88 28" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2.5" strokeLinecap="round" />
+              <path d="M 8 72 C 20 72, 22 48, 34 48 C 46 48, 50 58, 62 58 C 74 58, 76 28, 88 28" fill="none" stroke="url(#pathGrad)" strokeWidth="1.2" strokeLinecap="round" filter="url(#glow)" strokeDasharray="2 2" />
+            </svg>
+            <div className="relative grid grid-cols-4 gap-2 min-h-[170px]">
+              {journey.map((j, i) => (
+                <div key={j.step} className="relative flex flex-col items-center text-center" style={{ paddingTop: `${i === 0 ? 52 : i === 1 ? 18 : i === 2 ? 34 : 0}px` }}>
+                  <div className={`relative z-10 w-11 h-11 rounded-2xl grid place-items-center font-extrabold text-[12px] shadow-lg ${i === 3 ? 'bg-gradient-to-br from-[#F1C96B] to-[#D8A441] text-[#0b4b3d] shadow-[#D8A441]/30' : 'bg-[#0b4b3d]/80 border border-[#D8A441]/35 text-[#F3D48B] backdrop-blur'}`}>
+                    {j.step}
+                    {i < 3 && <span className="absolute -right-1 -top-1 w-2.5 h-2.5 rounded-full bg-[#6fe0bf] border-2 border-[#083a30]" />}
+                  </div>
+                  <div className="mt-3 text-[12px] font-extrabold text-white">{j.title}</div>
+                  <div className="text-[10px] text-emerald-100/55 mt-0.5 leading-tight">{j.desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          <div className="flex gap-10 mt-11 pt-8 border-t border-white/10">
-            {[['07', 'Magasins'], ['05', 'Rôles'], ['100%', 'Traçabilité']].map(([v, l]) => (
-              <div key={l}><div className="text-3xl font-extrabold text-gold-400">{v}</div><div className="text-[10px] uppercase tracking-wider text-emerald-200/50 mt-1">{l}</div></div>
+          <div className="mt-7 flex flex-wrap gap-2">
+            {['Demandes & devis', 'Validation multi-niveaux', 'Budget & planning', 'Traçabilité complète'].map(t => (
+              <span key={t} className="px-3 py-1.5 rounded-full bg-white/6 border border-white/10 text-[11px] font-semibold text-emerald-50/75">{t}</span>
             ))}
           </div>
         </div>
 
-        <div className="relative text-[11px] text-emerald-200/40">© 2026 Safari Import Export — Projet d'ouverture des magasins</div>
+        <div className="relative text-[11px] text-emerald-100/40">© 2026 Safari Import Export — Plateforme interne de gestion</div>
       </div>
 
-      {/* RIGHT FORM PANEL */}
-      <div className="flex-1 flex items-center justify-center px-5 py-10 sm:px-10">
-        <div className="w-full max-w-[430px]">
-          <div className="lg:hidden flex items-center gap-2 mb-8">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 grid place-items-center text-white font-extrabold">S</div>
-            <span className="font-extrabold tracking-wide">SAFARI</span>
+      {/* RIGHT FORM */}
+      <div className="flex-1 flex items-center justify-center px-5 py-10 sm:px-10 relative">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(14,122,95,0.08),transparent_45%)]" />
+        <div className="relative w-full max-w-[460px]">
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <img src="/logo-1707950070.jpg" alt="Safari" className="w-11 h-11 rounded-xl object-contain bg-white border border-[#dcebe5] p-1 shadow-sm" />
+            <div><div className="font-extrabold tracking-wide text-[#1E2229]">SAFARI</div><div className="text-[10px] text-muted">Store Management</div></div>
           </div>
 
           <div className="mb-7">
-            <h2 className="text-[28px] font-extrabold tracking-tight text-ink">Bon retour</h2>
-            <p className="text-muted text-[13px] mt-1.5">Connectez-vous pour accéder à votre espace.</p>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#0E7A5F]/10 text-[#0E7A5F] text-[11px] font-bold mb-3">
+              <LockKeyhole size={13} /> Connexion sécurisée
+            </div>
+            <h2 className="text-[32px] font-extrabold tracking-tight text-[#1E2229]">Bienvenue</h2>
+            <p className="text-[#727A88] text-[13.5px] mt-1.5">Connectez-vous pour accéder à votre espace de pilotage.</p>
           </div>
 
-          <div className="bg-white border border-line rounded-2xl shadow-card p-7 sm:p-8">
+          <div className="bg-white/95 backdrop-blur border border-[#dcebe5] rounded-[28px] shadow-[0_20px_60px_rgba(14,122,95,0.10)] p-7 sm:p-8">
             {error && (
               <div className="mb-5 flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-red-50 border border-red-100 text-red-700 text-[12px] font-semibold">
                 <AlertCircle size={16} className="shrink-0 mt-0.5" /><span>{error}</span>
@@ -142,60 +163,62 @@ export default function Login() {
 
             <form onSubmit={submit} className="space-y-4">
               <label className="block">
-                <span className="label">Adresse e-mail</span>
+                <span className="block text-[11px] font-extrabold uppercase tracking-wider text-[#727A88] mb-1.5">Adresse e-mail</span>
                 <div className="relative">
-                  <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-                  <input type="email" autoComplete="username" className="input !pl-10" value={email} onChange={e => setEmail(e.target.value)} placeholder="vous@safari.ma" />
+                  <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B93A1]" />
+                  <input type="email" autoComplete="username" className="w-full rounded-xl border border-[#dcebe5] bg-white px-10 py-3 text-[13.5px] text-[#1E2229] outline-none transition focus:border-[#0E7A5F] focus:ring-4 focus:ring-[#0E7A5F]/10" value={email} onChange={e => setEmail(e.target.value)} placeholder="vous@safari.ma" />
                 </div>
               </label>
 
               <label className="block">
-                <span className="label">Mot de passe</span>
+                <span className="block text-[11px] font-extrabold uppercase tracking-wider text-[#727A88] mb-1.5">Mot de passe</span>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-                  <input type={show ? 'text' : 'password'} autoComplete="current-password" className="input !pl-10 !pr-11" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" />
-                  <button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-muted hover:text-ink" title={show ? 'Masquer' : 'Afficher'}>
+                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B93A1]" />
+                  <input type={show ? 'text' : 'password'} autoComplete="current-password" className="w-full rounded-xl border border-[#dcebe5] bg-white px-10 pr-11 py-3 text-[13.5px] text-[#1E2229] outline-none transition focus:border-[#0E7A5F] focus:ring-4 focus:ring-[#0E7A5F]/10" value={password} onChange={e => setPassword(e.target.value)} placeholder="????????" />
+                  <button type="button" onClick={() => setShow(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[#8B93A1] hover:text-[#1E2229]" title={show ? 'Masquer' : 'Afficher'}>
                     {show ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
               </label>
 
               <div className="flex items-center justify-between pt-1">
-                <label className="flex items-center gap-2 cursor-pointer text-[12px] font-semibold text-muted">
-                  <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} className="w-4 h-4 accent-emerald-600" />
+                <label className="flex items-center gap-2 cursor-pointer text-[12px] font-semibold text-[#727A88]">
+                  <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)} className="w-4 h-4 accent-[#0E7A5F]" />
                   Se souvenir de moi
                 </label>
-                <button type="button" onClick={() => setError('Contactez l\'administrateur pour réinitialiser votre mot de passe.')} className="text-[12px] font-bold text-emerald-600 hover:underline">
+                <button type="button" onClick={() => setError("Contactez l'administrateur pour réinitialiser votre mot de passe.")} className="text-[12px] font-bold text-[#0E7A5F] hover:underline">
                   Mot de passe oublié ?
                 </button>
               </div>
 
-              <button className="btn-primary w-full !py-3 mt-2 !text-[13.5px]" disabled={busy}>
-                {busy ? 'Connexion en cours…' : <><span>Se connecter</span><ArrowRight size={16} /></>}
+              <button className="w-full mt-2 inline-flex items-center justify-center gap-2 rounded-xl bg-[#0E7A5F] px-4 py-3 text-[13.5px] font-extrabold text-white shadow-lg shadow-[#0E7A5F]/20 transition hover:bg-[#0b6851] disabled:opacity-60" disabled={busy}>
+                {busy ? 'Connexion en cours...' : <><span>Se connecter</span><ArrowRight size={16} /></>}
               </button>
             </form>
 
-            <div className="mt-7 pt-6 border-t border-line">
-              <div className="text-[10px] uppercase tracking-wider font-extrabold text-muted mb-3 text-center">Accès rapide — comptes de démonstration</div>
-              <div className="grid grid-cols-5 gap-2">
-                {demos.map(d => (
-                  <button key={d.role} onClick={() => useDemo(d)} title={`${d.email} / ${d.pass}`}
-                    className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition hover:-translate-y-0.5 ${email === d.email ? roleColors[d.color] : 'border-line bg-white hover:border-slate-300'}`}>
-                    <d.icon size={16} />
-                    <span className="text-[10px] font-extrabold">{d.label}</span>
-                  </button>
-                ))}
-              </div>
-              {demos.some(d => d.email === email) && (
-                <div className="mt-3 flex items-center justify-center gap-1.5 text-[10.5px] text-emerald-600 font-semibold">
-                  <Check size={12} /> Compte {demos.find(d => d.email === email).label} présélectionné — mot de passe rempli
+            {demos.length > 0 && (
+              <div className="mt-7 pt-6 border-t border-[#e5efea]">
+                <div className="text-[10px] uppercase tracking-wider font-extrabold text-[#8B93A1] mb-3 text-center">Accès rapide — comptes de démonstration</div>
+                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                  {demos.map(d => (
+                    <button key={d.role} onClick={() => useDemo(d)} title={`${d.email} / ${d.pass}`}
+                      className={`flex flex-col items-center gap-1.5 py-2.5 rounded-xl border transition hover:-translate-y-0.5 ${email === d.email ? roleColors[d.color] : 'border-[#e5efea] bg-white hover:border-[#cfe0d8] text-[#727A88]'}`}>
+                      <d.icon size={16} />
+                      <span className="text-[10px] font-extrabold">{d.label}</span>
+                    </button>
+                  ))}
                 </div>
-              )}
-            </div>
+                {demos.some(d => d.email === email) && (
+                  <div className="mt-3 flex items-center justify-center gap-1.5 text-[10.5px] text-[#0E7A5F] font-semibold">
+                    <Check size={12} /> Compte {demos.find(d => d.email === email)?.label} présélectionné
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-muted">
-            <ShieldCheck size={13} className="text-emerald-600" /> Connexion sécurisée · Accès contrôlé par rôle
+          <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-[#727A88]">
+            <ShieldCheck size={13} className="text-[#0E7A5F]" /> Accès contrôlé par rôle · Données sécurisées
           </div>
         </div>
       </div>

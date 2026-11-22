@@ -354,7 +354,7 @@ router.patch('/:id/action', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.patch('/:id/execution-status', requireAuth, asyncRoute(async (req, res) => {
-  // Seul le demandeur peut modifier le suivi d'exécution
+  // Le demandeur ou l'admin peut modifier le suivi d'exécution
   const { execution_status: status } = req.body || {};
   const config = EXECUTION_STATES[status];
   if (!config) return res.status(400).json({ error: 'Statut d’exécution invalide' });

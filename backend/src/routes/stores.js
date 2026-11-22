@@ -20,7 +20,6 @@ async function withProgress(store) {
     progress,
     computed_status: signal.status,
     status_reason: signal.reason,
-    expected_progress: signal.expected,
     days_to_opening: signal.days_to_opening,
     items_count: r.rows.length,
   };
@@ -42,14 +41,23 @@ router.get('/:id', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.put('/:id/image', requireAuth, can('manage_stores'), uploadStoreImage.single('image'), asyncRoute(async (req, res) => {
-  const current = await query('SELECT id,name,image_url FROM stores WHERE id=$1', [req.params.id]);
+  const current = await query('SELECT id,name,image_url,image_zoom,image_pos_x,image_pos_y FROM stores WHERE id=$1', [req.params.id]);
   if (!current.rows[0]) return res.status(404).json({ error: 'Magasin introuvable' });
   let storedImage = current.rows[0].image_url || null;
-  if (req.file) storedImage = `/uploads/${await persistUpload(req.file, 'store')}`;
-  else if (req.body?.image_url === '' || req.body?.clear_image === 'true') storedImage = null;
-  else return res.status(400).json({ error: 'Image requise' });
-  const r = await query('UPDATE stores SET image_url=$1, updated_at=NOW() WHERE id=$2 RETURNING *', [storedImage, req.params.id]);
-  await audit(req, 'UPDATE_STORE_IMAGE', 'store', req.params.id, { from: current.rows[0].image_url || null, to: storedImage, name: current.rows[0].name });
+  const hasFile = !!req.file;
+  const clear = req.body?.image_url === '' || req.body?.clear_image === 'true';
+  const hasTransform = req.body?.image_zoom !== undefined || req.body?.image_pos_x !== undefined || req.body?.image_pos_y !== undefined;
+  if (hasFile) storedImage = `/uploads/${await persistUpload(req.file, 'store')}`;
+  else if (clear) storedImage = null;
+  else if (!hasTransform) return res.status(400).json({ error: 'Image ou transformation requise' });
+  const zoom = req.body?.image_zoom !== undefined ? Math.min(2.5, Math.max(1, Number(req.body.image_zoom) || 1)) : (hasFile || clear ? 1 : current.rows[0].image_zoom ?? 1);
+  const posX = req.body?.image_pos_x !== undefined ? Number(req.body.image_pos_x) || 0 : (hasFile || clear ? 0 : current.rows[0].image_pos_x ?? 0);
+  const posY = req.body?.image_pos_y !== undefined ? Number(req.body.image_pos_y) || 0 : (hasFile || clear ? 0 : current.rows[0].image_pos_y ?? 0);
+  const r = await query(
+    'UPDATE stores SET image_url=$1, image_zoom=$2, image_pos_x=$3, image_pos_y=$4, updated_at=NOW() WHERE id=$5 RETURNING *',
+    [storedImage, zoom, posX, posY, req.params.id]
+  );
+  await audit(req, 'UPDATE_STORE_IMAGE', 'store', req.params.id, { from: current.rows[0].image_url || null, to: storedImage, zoom, posX, posY, name: current.rows[0].name });
   res.json(r.rows[0]);
 }));
 

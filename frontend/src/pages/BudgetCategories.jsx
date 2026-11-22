@@ -359,7 +359,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
                   <td className="bento-td">{money(d.amount)}</td>
                   <td className="bento-td"><StatusBadge status={d.status} /></td>
                   <td className="bento-td">{dateFR(d.created_at)}</td>
-                  <td className="bento-td"><ExecutionStatusSelect demand={d} disabled={!canTrackExecution} onChange={updateSupplierDemand} /></td>
+                  <td className="bento-td"><ExecutionStatusSelect demand={d} canEdit={user?.role === "admin" || Number(d?.created_by) === Number(user?.id)} onChange={updateSupplierDemand} /></td>
                 </tr>)}
                 {supplierDemands.length === 0 && <tr><td colSpan="6" className="bento-td text-center text-muted">Aucune demande pour ce prestataire</td></tr>}
               </tbody>

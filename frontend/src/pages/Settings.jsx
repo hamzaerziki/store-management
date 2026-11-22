@@ -82,7 +82,7 @@ export default function Settings() {
       const { data } = await api.post('/suppliers', { name: enterpriseName, kind: 'Entreprise' });
       setSuppliers(current => [...current, data].sort((a, b) => a.name.localeCompare(b.name)));
       setEnterpriseName('');
-      flash('Entreprise cr??e ? disponible lors de l?ajout d?un devis');
+      flash('Entreprise créée ? disponible lors de l\'ajout d\'un devis');
     } catch (err) { setError(err); }
   }
 
@@ -93,7 +93,7 @@ export default function Settings() {
       if (!payload.password) delete payload.password;
       const { data } = await api.put('/settings/smtp', payload);
       setSmtp(s => ({ ...s, ...data, password: '' }));
-      flash('Configuration SMTP enregistr?e');
+      flash('Configuration SMTP enregistrée');
     } catch (err) { setError(err); }
   }
 
@@ -101,7 +101,7 @@ export default function Settings() {
     setError('');
     try {
       await api.post('/settings/smtp/test', { to: smtpTestTo || user?.email });
-      flash('Email de test envoy?');
+      flash('E-mail de test envoyé');
     } catch (err) { setError(err); }
   }
 
@@ -162,22 +162,22 @@ export default function Settings() {
 
           {can('manage_users') && (
             <Card>
-              <CardHead title="Configuration SMTP" subtitle="Emails sortants: configuration DB prioritaire, fallback .env si non configur?e" right={<Mail size={16} className="text-muted" />} />
+              <CardHead title="Configuration SMTP" subtitle="Emails sortants: configuration DB prioritaire, fallback .env si non configurée" right={<Mail size={16} className="text-muted" />} />
               <form onSubmit={saveSmtp} className="px-5 pb-5 space-y-4">
                 <div className="flex items-center justify-between rounded-xl bg-canvas px-4 py-3">
                   <div>
                     <div className="text-[12.5px] font-bold">Activer SMTP</div>
-                    <div className="text-[11px] text-muted">Source actuelle: {smtp.source === 'db' ? 'Base de donn?es' : 'Environnement (.env)'} ? {smtp.configured ? 'Configur?' : 'Non configur?'}</div>
+                    <div className="text-[11px] text-muted">Source actuelle: {smtp.source === 'db' ? 'Base de données' : 'Environnement (.env)'} ? {smtp.configured ? 'Configuré' : 'Non configuré'}</div>
                   </div>
                   <button type="button" onClick={() => setSmtp(s => ({ ...s, enabled: !s.enabled }))} className={`relative w-10 h-6 rounded-full transition ${smtp.enabled ? 'bg-emerald-600' : 'bg-slate-300'}`}><span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition ${smtp.enabled ? 'translate-x-4' : ''}`} /></button>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  <Field label="H?te SMTP"><input className="input" value={smtp.host} onChange={e => setSmtp({ ...smtp, host: e.target.value })} placeholder="smtp.example.com" /></Field>
+                  <Field label="Hôte SMTP"><input className="input" value={smtp.host} onChange={e => setSmtp({ ...smtp, host: e.target.value })} placeholder="smtp.example.com" /></Field>
                   <Field label="Port"><input type="number" className="input" value={smtp.port} onChange={e => setSmtp({ ...smtp, port: e.target.value })} /></Field>
                   <Field label="Utilisateur"><input className="input" value={smtp.user} onChange={e => setSmtp({ ...smtp, user: e.target.value })} /></Field>
-                  <Field label="Mot de passe"><input type="password" className="input" value={smtp.password} onChange={e => setSmtp({ ...smtp, password: e.target.value })} placeholder={smtp.password_set ? '???????? (configur?)' : 'Mot de passe SMTP'} /></Field>
-                  <Field label="Exp?diteur (From)"><input className="input" value={smtp.from} onChange={e => setSmtp({ ...smtp, from: e.target.value })} placeholder="no-reply@safari.ma" /></Field>
-                  <Field label="S?curit? TLS/SSL"><label className="input flex items-center gap-2"><input type="checkbox" checked={!!smtp.secure} onChange={e => setSmtp({ ...smtp, secure: e.target.checked })} /> Connexion s?curis?e (secure)</label></Field>
+                  <Field label="Mot de passe"><input type="password" className="input" value={smtp.password} onChange={e => setSmtp({ ...smtp, password: e.target.value })} placeholder={smtp.password_set ? '???? (configuré)' : 'Mot de passe SMTP'} /></Field>
+                  <Field label="Expéditeur (From)"><input className="input" value={smtp.from} onChange={e => setSmtp({ ...smtp, from: e.target.value })} placeholder="no-reply@safari.ma" /></Field>
+                  <Field label="Sécurité TLS/SSL"><label className="input flex items-center gap-2"><input type="checkbox" checked={!!smtp.secure} onChange={e => setSmtp({ ...smtp, secure: e.target.checked })} /> Connexion sécurisée (secure)</label></Field>
                 </div>
                 <div className="flex flex-wrap items-end gap-3">
                   <div className="flex-1 min-w-[220px]"><Field label="Email de test"><input className="input" value={smtpTestTo} onChange={e => setSmtpTestTo(e.target.value)} placeholder={user?.email || 'test@example.com'} /></Field></div>
@@ -190,12 +190,12 @@ export default function Settings() {
 
           {can('manage_users') && (
             <Card>
-            <CardHead title="Administration V2.1" subtitle="R?f?rentiels, notifications et habilitations" right={<Bell size={16} className="text-muted" />} />
+            <CardHead title="Administration V2.1" subtitle="Référentiels, notifications et habilitations" right={<Bell size={16} className="text-muted" />} />
             <div className="px-5 pb-5 flex flex-wrap gap-2">
               <Link to="/tax-rates" className="chip">Taux de TVA</Link>
-              <Link to="/notification-admin" className="chip">R?gles &amp; mod?les de notification</Link>
+              <Link to="/notification-admin" className="chip">Règles &amp; modèles de notification</Link>
               <Link to="/notifications" className="chip">Centre de notifications</Link>
-              <Link to="/delegations" className="chip">D?l?gations</Link>
+              <Link to="/delegations" className="chip">Délégations</Link>
             </div>
           </Card>
           )}

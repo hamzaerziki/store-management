@@ -22,7 +22,7 @@ async function assertDeactivationAllowed(id) {
   if (target.rows[0].active && target.rows[0].role === 'admin') {
     const admins = await query("SELECT count(*)::int AS count FROM users WHERE role='admin' AND active=true AND id<>$1", [id]);
     if (!admins.rows[0].count) {
-      const error = new Error('Impossible de dÃ©sactiver le dernier administrateur actif');
+      const error = new Error('Impossible de désactiver le dernier administrateur actif');
       error.status = 409;
       throw error;
     }
@@ -63,7 +63,7 @@ router.put('/users/:id', requireAuth, can('manage_users'), asyncRoute(async (req
 router.post('/users/:id/reset-password', requireAuth, can('manage_users'), asyncRoute(async (req, res) => {
   const password = req.body?.password;
   if (!password || String(password).length < config.security.passwordMinLength) {
-    return res.status(400).json({ error: `Le mot de passe doit contenir au moins ${config.security.passwordMinLength} caractÃ¨res` });
+    return res.status(400).json({ error: `Le mot de passe doit contenir au moins ${config.security.passwordMinLength} caractères` });
   }
   const target = await query('SELECT id,name,email FROM users WHERE id=$1', [req.params.id]);
   if (!target.rows[0]) return res.status(404).json({ error: 'Utilisateur introuvable' });
@@ -188,7 +188,7 @@ router.get('/reports/progress.xlsx', requireAuth, can('export_reports'), asyncRo
   const data = rows.map(r => ({
     Magasin: r.magasin, Ville: r.ville, Ouverture: String(r.ouverture).slice(0, 10),
     Articles: r.articles, 'Progression %': r.progression,
-    'Budget MAD': Number(r.budget), 'EngagÃ© MAD': Number(r.engage),
+    'Budget MAD': Number(r.budget), 'Engagé MAD': Number(r.engage),
   }));
   const ws = XLSX.utils.json_to_sheet(data);
   const wb = XLSX.utils.book_new();
@@ -206,11 +206,11 @@ router.get('/reports/progress.pdf', requireAuth, can('export_reports'), asyncRou
   const doc = new PDFDocument({ margin: 40 });
   doc.pipe(res);
   doc.fontSize(18).fillColor('#0d2c26').text('Safari Import Export', { continued: false });
-  doc.fontSize(11).fillColor('#666').text('Rapport de progression des ouvertures â€” ' + new Date().toLocaleDateString('fr-FR'));
+  doc.fontSize(11).fillColor('#666').text('Rapport de progression des ouvertures — ' + new Date().toLocaleDateString('fr-FR'));
   doc.moveDown();
   doc.fontSize(10).fillColor('#000');
   rows.forEach(r => {
-    doc.text(`${r.magasin} (${r.ville}) â€” ${r.progression}% â€” ${r.articles} articles â€” Budget ${Number(r.budget).toLocaleString('fr-FR')} MAD`);
+    doc.text(`${r.magasin} (${r.ville}) — ${r.progression}% — ${r.articles} articles — Budget ${Number(r.budget).toLocaleString('fr-FR')} MAD`);
   });
   doc.end();
 }));
@@ -250,7 +250,7 @@ router.put('/settings/smtp', requireAuth, can('manage_users'), asyncRoute(async 
     from: String(body.from || body.user || '').trim(),
   };
   if (settings.enabled && (!settings.host || !settings.from)) {
-    return res.status(400).json({ error: 'H?te SMTP et exp?diteur requis quand SMTP est activ?' });
+    return res.status(400).json({ error: 'Hôte SMTP et expéditeur requis quand SMTP est activé' });
   }
   await setSetting('smtp', settings, req.user.id);
   clearSettingCache('smtp');
