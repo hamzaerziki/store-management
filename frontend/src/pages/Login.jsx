@@ -188,11 +188,7 @@ export default function Login() {
               </button>
             </form>
 
-                  <div className="mt-3 flex items-center justify-center gap-1.5 text-[10.5px] text-[#0E7A5F] font-semibold">
-                  </div>
-                )}
-              </div>
-            )}
+    
           </div>
 
           <div className="mt-5 flex items-center justify-center gap-1.5 text-[11px] text-[#727A88]">
