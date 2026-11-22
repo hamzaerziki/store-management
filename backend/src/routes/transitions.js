@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { query } from '../db.js';
-import { requireAuth, asyncRoute } from '../middleware/auth.js';
+import { requireAuth, asyncRoute, readScope, assignedStoreIds, GLOBAL_READ_ROLES } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -34,6 +34,10 @@ router.get('/', requireAuth, asyncRoute(async (req, res) => {
   );
   let rows = r.rows;
   if (req.query.store_id) rows = rows.filter(row => String(row.store_id) === String(req.query.store_id));
+  if (!GLOBAL_READ_ROLES.includes(req.user.role)) {
+    const ids = new Set((await assignedStoreIds(req.user.id)).map(Number));
+    rows = rows.filter(row => row.store_id && ids.has(Number(row.store_id)));
+  }
   res.json(rows);
 }));
 

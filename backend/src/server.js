@@ -39,7 +39,22 @@ app.set('trust proxy', trustProxy);
 app.disable('x-powered-by');
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    useDefaults: true,
+    directives: {
+      "default-src": ["'self'"],
+      "base-uri": ["'self'"],
+      "frame-ancestors": ["'self'"],
+      "img-src": ["'self'", "data:", "blob:", "https:"],
+      "script-src": ["'self'"],
+      "style-src": ["'self'", "'unsafe-inline'", "https:"],
+      "font-src": ["'self'", "data:", "https:"],
+      "connect-src": ["'self'", "https:", "ws:", "wss:"],
+      "object-src": ["'none'"],
+      "frame-src": ["'self'", "blob:", "data:"],
+      "worker-src": ["'self'", "blob:"],
+    },
+  },
 }));
 app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -73,6 +88,11 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 fs.mkdirSync(path.resolve(config.uploadDir), { recursive: true });
+app.param('id', (req, res, next, value) => {
+  if (value !== undefined && !/^[0-9]+$/.test(String(value))) return res.status(400).json({ error: 'Identifiant invalide' });
+  next();
+});
+
 app.use('/uploads', express.static(path.resolve(config.uploadDir), {
   fallthrough: true,
   etag: true,
