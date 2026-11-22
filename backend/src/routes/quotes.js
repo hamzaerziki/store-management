@@ -445,7 +445,7 @@ router.post('/', requireAuth, can('upload_quotes'), upload.single('file'), async
 router.post('/:id/submit', requireAuth, asyncRoute(async (req, res) => {
   const quote = await quoteForAction(req, req.params.id);
   if (!['IT', 'MG', 'RMG'].includes(req.user.role)) {
-    return res.status(403).json({ error: 'Soumission réservée au propriétaire du devis' });
+    try { await assertAssignment(req, quote.store_id, quote.lot_id || quote.item_lot_id); } catch(e){ return res.status(e.status||403).json({error:e.message}); }
   }
   const state = String(quote.state || 'brouillon');
   if (!['brouillon', 'corrige'].includes(state)) {

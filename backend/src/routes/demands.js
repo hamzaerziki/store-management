@@ -370,7 +370,7 @@ router.patch('/:id/action', requireAuth, asyncRoute(async (req, res) => {
 }));
 
 router.patch('/:id/execution-status', requireAuth, asyncRoute(async (req, res) => {
-  // Le demandeur ou l'admin peut modifier le suivi d'exécution
+  // Toute personne autorisee affectee peut modifier le suivi d'exécution
   const { execution_status: status } = req.body || {};
   const config = EXECUTION_STATES[status];
   if (!config) return res.status(400).json({ error: 'Statut d’exécution invalide' });
@@ -380,7 +380,6 @@ router.patch('/:id/execution-status', requireAuth, asyncRoute(async (req, res) =
   try { await assertAssignment(req, demand.store_id, demand.lot_id); }
   catch (e) { return res.status(e.status || 403).json({ error: e.message }); }
   if (demand.status !== 'approved') return res.status(400).json({ error: 'Le suivi d\'exécution concerne uniquement les demandes approuvées' });
-  if (Number(demand.created_by) !== Number(req.user.id)) return res.status(403).json({ error: 'Seul le demandeur peut modifier le suivi d\'exécution' });
 
   const result = await tx(async client => {
     const updated = await client.query(

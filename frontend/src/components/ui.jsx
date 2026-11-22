@@ -118,7 +118,6 @@ export function ExecutionStatusSelect({ demand, disabled = false, canEdit, onCha
         </select>
         <ChevronDown size={14} className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-[#0E7A5F]" />
       </div>
-      {!editable && <div className="mt-1 text-[9px] text-muted">Modifiable par le demandeur ou l'administrateur</div>}
       {error && <div className="mt-1 text-[9px] text-red-600">{error}</div>}
     </div>
   );

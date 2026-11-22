@@ -155,7 +155,7 @@ router.get('/:id/view', asyncRoute(async (req, res) => {
   const r = await query('SELECT * FROM documents WHERE id=$1', [req.params.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Fichier introuvable' });
   await assertAssignment(req, r.rows[0].store_id, r.rows[0].lot_id || null);
-  if (!canAccessDocument(req, r.rows[0])) return res.status(403).json({ error: 'Accès réservé au propriétaire du devis' });
+
   const filePath = uploadPath(r.rows[0].stored_name);
   if (!filePath) return res.status(400).json({ error: 'Nom de fichier invalide' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier indisponible' });
@@ -172,7 +172,7 @@ router.get('/:id/download', asyncRoute(async (req, res) => {
   const r = await query('SELECT * FROM documents WHERE id=$1', [req.params.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Fichier introuvable' });
   await assertAssignment(req, r.rows[0].store_id, r.rows[0].lot_id || null);
-  if (!canAccessDocument(req, r.rows[0])) return res.status(403).json({ error: 'Accès refusé' });
+
   const filePath = uploadPath(r.rows[0].stored_name);
   if (!filePath) return res.status(400).json({ error: 'Nom de fichier invalide' });
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier indisponible' });
