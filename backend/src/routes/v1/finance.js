@@ -172,6 +172,8 @@ router.post('/approvals/:id/decisions', asyncV1(async (req, res) => {
     if (requestRow.status !== 'soumis') throw conflict(`Demande d’approbation à l’état ${requestRow.status}`);
     const step = requestRow.current_step;
     const approval = await approvalObject(client, requestRow.object_type, requestRow.object_id);
+    await assertWritable(req, approval.projectId, client);
+    await assertAssignment(req, approval.projectId, approval.lotId, client);
     const role = await effectiveRole(req, approval.projectId, approval.lotId, client);
     assertStepRole(step, role);
     assertIfMatchRow(req, requestRow, 'demande d’approbation');
