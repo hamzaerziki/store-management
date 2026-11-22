@@ -107,8 +107,8 @@ export default function Layout() {
       {open && <div className="fixed inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setOpen(false)} />}
       <aside className={`fixed lg:sticky top-0 h-screen w-[248px] z-40 bg-gradient-to-br from-forest-800 to-forest-900 text-white flex flex-col p-5 transition-transform lg:translate-x-0 ${open ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex items-center gap-3 px-2 pb-7 shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-400 to-gold-500 grid place-items-center shadow-lg">
-            <svg viewBox="0 0 24 24" className="w-5 h-5 text-forest-900" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2c3 3.5 4.5 7 4.5 10a4.5 4.5 0 0 1-9 0C7.5 9 9 5.5 12 2Z"/><path d="M12 22v-6"/></svg>
+          <div className="w-11 h-11 rounded-xl bg-white/95 p-1 shadow-lg border border-white/10">
+            <img src="/logo-1707950070.jpg" alt="Safari" className="w-full h-full object-contain rounded-lg" />
           </div>
           <div><div className="font-extrabold tracking-wide leading-none">SAFARI</div><div className="text-[9px] uppercase tracking-[.18em] text-emerald-200/60 mt-1">Import · Export</div></div>
           <button className="ml-auto lg:hidden" onClick={() => setOpen(false)}><X size={18} /></button>
