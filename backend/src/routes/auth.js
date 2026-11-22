@@ -50,12 +50,12 @@ router.post('/login', loginLimiter, asyncRoute(async (req, res) => {
   await audit(req, 'LOGIN_SUCCESS', 'user', user.id, { email: user.email });
   res.json({
     token,
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, must_change_password: !!user.must_change_password },
   });
 }));
 
 router.get('/me', requireAuth, asyncRoute(async (req, res) => {
-  const r = await query('SELECT id,name,email,role,department,active,created_at FROM users WHERE id = $1', [req.user.id]);
+  const r = await query('SELECT id,name,email,role,department,active,must_change_password,created_at FROM users WHERE id = $1', [req.user.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Utilisateur introuvable' });
   res.json(r.rows[0]);
 }));
@@ -83,7 +83,7 @@ router.post('/change-password', requireAuth, asyncRoute(async (req, res) => {
     return res.status(400).json({ error: 'Mot de passe actuel incorrect' });
   }
   const updated = await query(
-    'UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 0) + 1 WHERE id = $2 RETURNING id,name,email,role,token_version',
+    'UPDATE users SET password_hash = $1, token_version = COALESCE(token_version, 0) + 1, must_change_password = FALSE WHERE id = $2 RETURNING id,name,email,role,token_version,must_change_password',
     [await bcrypt.hash(next, config.security.bcryptRounds), req.user.id]
   );
   await audit(req, 'CHANGE_PASSWORD', 'user', req.user.id, {});
@@ -91,7 +91,7 @@ router.post('/change-password', requireAuth, asyncRoute(async (req, res) => {
   res.json({
     ok: true,
     token: signToken(user),
-    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    user: { id: user.id, name: user.name, email: user.email, role: user.role, must_change_password: !!user.must_change_password },
   });
 }));
 
@@ -108,7 +108,7 @@ router.post('/register', requireAuth, requireRole('admin'), asyncRoute(async (re
   }
   const hash = await bcrypt.hash(password, config.security.bcryptRounds);
   const r = await query(
-    'INSERT INTO users (name,email,password_hash,role,department) VALUES ($1,$2,$3,$4,$5) RETURNING id,name,email,role,department,active',
+    'INSERT INTO users (name,email,password_hash,role,department,must_change_password) VALUES ($1,$2,$3,$4,$5,TRUE) RETURNING id,name,email,role,department,active,must_change_password',
     [name, email, hash, role, needsDept ? dept : null]
   );
   await audit(req, 'CREATE_USER', 'user', r.rows[0].id, { role, department: r.rows[0].department });

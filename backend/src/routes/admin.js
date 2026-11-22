@@ -79,7 +79,7 @@ router.post('/users/:id/reset-password', requireAuth, can('manage_users'), async
   const target = await query('SELECT id,name,email FROM users WHERE id=$1', [req.params.id]);
   if (!target.rows[0]) return res.status(404).json({ error: 'Utilisateur introuvable' });
   await query(
-    'UPDATE users SET password_hash=$1, token_version=COALESCE(token_version, 0) + 1 WHERE id=$2',
+    'UPDATE users SET password_hash=$1, token_version=COALESCE(token_version, 0) + 1, must_change_password=TRUE WHERE id=$2',
     [await bcrypt.hash(password, config.security.bcryptRounds), req.params.id]
   );
   await audit(req, 'RESET_PASSWORD', 'user', req.params.id, { email: target.rows[0].email });

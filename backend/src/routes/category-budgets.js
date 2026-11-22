@@ -133,7 +133,7 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
       department: row.department,
       planned_amount: planned,
       used_amount: Number(row.used_amount || 0),
-      approved_demand_count: Number(row.approved_demand_count || 0),
+      approved_demand_count: Number(row.approved_demand_count || 0), consumed_amount: Number(row.used_amount || 0),
       allocated_budget: totalPlanned ? Math.round(storeBudget * planned / totalPlanned * 100) / 100 : 0,
     };
   });

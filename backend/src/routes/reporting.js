@@ -49,7 +49,7 @@ function applyFilters(rows, filters) {
 async function buildSummary(req, filters) {
   const scope = await readScope(req, 's.id', 1);
   const itemScope = await readScope(req, 'i.store_id', 1);
-  const [storeRows, itemRows] = await Promise.all([
+  const [storeRows, itemRows, approvedDemandRows] = await Promise.all([
     query(
       `SELECT s.id, s.name, s.city, s.brand, s.code, EXTRACT(YEAR FROM s.opening_date)::int AS opening_year,
         s.opening_date, s.project_state, s.budget, s.status_override, u.role AS owner_role,
@@ -63,7 +63,13 @@ async function buildSummary(req, filters) {
       scope.params
     ),
     query(`SELECT i.store_id, i.status, ${ITEM_ESTIMATE} AS estimate FROM items i WHERE 1=1 ${itemScope.clause}`, itemScope.params),
+    query(
+      `SELECT store_id, COALESCE(SUM(amount),0) AS amount, COUNT(*)::int AS count
+         FROM demands WHERE status='approved' ${scope.clause.replace(/s\.id/g,'store_id')} GROUP BY store_id`,
+      scope.params
+    ),
   ]);
+  const demandEngagedByStore = new Map(approvedDemandRows.rows.map(r => [Number(r.store_id), { amount: Number(r.amount || 0), count: Number(r.count || 0) }]));
   const ENGAGED_STATUSES = new Set(['validated','approved','ordered','delivered','installed']);
   const statusByStore = new Map();
   const engagedByStore = new Map();
@@ -79,7 +85,9 @@ async function buildSummary(req, filters) {
     statusByStore.set(store.id, signal.status);
     const itemEngaged = rows.filter(r => ENGAGED_STATUSES.has(r.status)).reduce((sum, r) => sum + Number(r.estimated_budget || 0), 0);
     const poEngaged = Number(store.po_engaged || 0);
-    engagedByStore.set(store.id, Math.max(itemEngaged, poEngaged));
+    const demandEngaged = Number(demandEngagedByStore.get(store.id)?.amount || 0);
+    // Consumed/engaged when DG approves demand: include approved demand amount.
+    engagedByStore.set(store.id, Math.max(itemEngaged, poEngaged, demandEngaged));
   });
   const stores = applyFilters(
     storeRows.rows.map(store => ({
@@ -143,12 +151,22 @@ async function buildSummary(req, filters) {
     return point;
   });
 
+  const approvedDemandsTotal = stores.reduce((sum, s) => sum + Number(demandEngagedByStore.get(s.id)?.amount || 0), 0);
+  const approvedDemandsCount = stores.reduce((sum, s) => sum + Number(demandEngagedByStore.get(s.id)?.count || 0), 0);
+  const byStatus = stores.reduce((acc, s) => { acc[s.computed_status] = (acc[s.computed_status] || 0) + 1; return acc; }, {});
+  const byCity = Object.values(byStore.reduce((acc, store) => {
+    const key = store.city || 'Autre';
+    acc[key] = acc[key] || { label: key, budget: 0, engaged: 0, stores: 0 };
+    acc[key].budget += Number(store.budget || 0); acc[key].engaged += Number(store.engaged || 0); acc[key].stores += 1; return acc;
+  }, {})).sort((a,b)=>b.budget-a.budget);
   return {
     generated_at: new Date().toISOString(),
     filters,
-    totals,
+    totals: { ...totals, approved_demands_amount: approvedDemandsTotal, approved_demands_count: approvedDemandsCount, stores: stores.length },
     by_store: byStore,
     by_brand: byBrand,
+    by_city: byCity,
+    by_status: byStatus,
     by_lot: byLot,
     trend,
     statuses,

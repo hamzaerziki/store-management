@@ -109,19 +109,21 @@ router.get('/filters', requireAuth, asyncRoute(async (req, res) => {
 async function storeSummary(store, itemIds = null) {
   const scoped = itemIds ? 'AND i.id = ANY($2::int[])' : '';
   const params = itemIds ? [store.id, itemIds] : [store.id];
-  const items = await query(
-    `SELECT i.status, ${QUOTE_ESTIMATE} AS estimate FROM items i WHERE i.store_id=$1 ${scoped}`,
-    params
-  );
+  const [items, demandEngaged] = await Promise.all([
+    query(`SELECT i.status, ${QUOTE_ESTIMATE} AS estimate FROM items i WHERE i.store_id=$1 ${scoped}`, params),
+    query(`SELECT COALESCE(SUM(amount),0) AS amount FROM demands WHERE store_id=$1 AND status='approved'`, [store.id]),
+  ]);
   const rows = items.rows.map(row => ({ status: row.status, estimated_budget: row.estimate }));
   const progress = computeStoreProgress(rows);
   const byStatus = {};
   Object.keys(STATUS_LABELS).forEach(key => { byStatus[key] = 0; });
   rows.forEach(row => { byStatus[row.status] = (byStatus[row.status] || 0) + 1; });
   const estimated = rows.reduce((sum, row) => sum + Number(row.estimated_budget || 0), 0);
-  const engaged = rows
+  const itemEngaged = rows
     .filter(row => progressOf(row.status) >= 50)
     .reduce((sum, row) => sum + Number(row.estimated_budget || 0), 0);
+  const approvedDemandEngaged = Number(demandEngaged.rows[0]?.amount || 0);
+  const engaged = Math.max(itemEngaged, approvedDemandEngaged);
   const signal = storeSignal(progress, store.opening_date, store.status_override, {
     total: rows.length,
     installed: rows.filter(row => row.status === 'installed').length,

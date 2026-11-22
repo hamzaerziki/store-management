@@ -2,6 +2,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Layout from './components/Layout';
 import Login from './pages/Login';
+import ChangePassword from './pages/ChangePassword';
 import Dashboard from './pages/Dashboard';
 import Stores from './pages/Stores';
 import StoreDetail from './pages/StoreDetail';
@@ -47,6 +48,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/change-password" element={<Protected><ChangePassword /></Protected>} />
       <Route element={<Protected><Layout /></Protected>}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/stores" element={<Stores />} />

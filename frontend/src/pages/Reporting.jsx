@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDataRefresh } from '../hooks/useDataRefresh';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend,
+  PieChart, Pie, Cell, Legend, BarChart, Bar,
 } from 'recharts';
 import {
   CalendarDays, Download, Printer, RotateCcw, SlidersHorizontal, Wallet, TrendingUp,
-  Receipt, CreditCard, AlertTriangle, Clock, FileBarChart, Sparkles, CircleUserRound,
+  Receipt, CreditCard, AlertTriangle, Clock, FileBarChart, Sparkles, CircleUserRound, Building2, FileCheck2, PieChart as PieIcon, BarChart3,
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
@@ -84,6 +84,9 @@ export default function Reporting() {
       paid: pick(totals, ['paid', 'paye', 'paid_amount', 'amount_paid']),
       risks: pick(totals, ['risks', 'risques', 'open_risks']),
       delays: pick(totals, ['delays', 'retards', 'late_stores']),
+      stores: pick(totals, ['stores', 'store_count']),
+      approvedDemands: pick(totals, ['approved_demands_count', 'approved_demands']),
+      approvedAmount: pick(totals, ['approved_demands_amount']),
     };
   }, [summary]);
 
@@ -113,8 +116,10 @@ export default function Reporting() {
   })), [stores]);
 
   const kpis = [
+    { label: 'Magasins', value: String(kpi.stores || stores.length), sub: 'Magasins dans le périmètre', icon: Building2, accent: '#1E5A4A', badge: 'Portefeuille' },
     { label: 'Budget', value: money(kpi.budget), sub: 'Budget prévisionnel du périmètre', icon: Wallet, accent: '#0E7A5F', badge: 'Total' },
-    { label: 'Engagé', value: money(kpi.engaged), sub: 'Montant des engagements', icon: TrendingUp, accent: '#16A37C', badge: `${budgetFlow.consumption}% du budget` },
+    { label: 'Consommé / Engagé', value: money(kpi.engaged), sub: 'Demandes approuvées DG + engagements', icon: TrendingUp, accent: '#16A37C', badge: `${budgetFlow.consumption}% du budget` },
+    { label: 'Demandes approuvées', value: String(kpi.approvedDemands || 0), sub: money(kpi.approvedAmount || 0) + ' consommés', icon: FileCheck2, accent: '#2E7D32', badge: 'DG' },
     { label: 'Facturé', value: money(kpi.invoiced), sub: 'Factures enregistrées', icon: Receipt, accent: '#D8A441', badge: `${budgetFlow.invoicing}% facturé` },
     { label: 'Payé', value: money(kpi.paid), sub: 'Paiements effectués', icon: CreditCard, accent: '#6FD3C7', badge: `${budgetFlow.settlement}% réglé` },
     { label: 'Risques', value: String(kpi.risks), sub: 'Risques ouverts', icon: AlertTriangle, accent: '#F7C96B', badge: 'Alertes' },
@@ -219,7 +224,7 @@ export default function Reporting() {
         <span className="font-bold">{stores.length} magasin(s) dans le périmètre</span>
       </div>
 
-      <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="mb-5 grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
         {kpis.map(item => (
           <div className="bento-kpi" key={item.label}>
             <div className="flex items-start justify-between gap-2">
@@ -229,7 +234,7 @@ export default function Reporting() {
               <span className="rounded-full px-2 py-1 text-[9px] font-extrabold" style={{ background: '#EAF6F2', color: item.accent }}>{item.badge}</span>
             </div>
             <div className="mt-4 text-[11px] font-bold uppercase tracking-wide text-[#8B93A1]">{item.label}</div>
-            <div className="mt-1 text-[19px] font-extrabold tracking-tight text-[#1E2229]">{item.value}</div>
+            <div className="mt-1 text-[17px] font-extrabold tracking-tight text-[#1E2229]">{item.value}</div>
             <div className="mt-2 text-[10px] leading-snug text-[#8B93A1]">{item.sub}</div>
           </div>
         ))}
@@ -329,6 +334,47 @@ export default function Reporting() {
                 <span className="w-9 text-right text-[11px] font-extrabold text-[#1E2229]">{row.progress}%</span>
               </div>
             ))}
+          </div>
+        </section>
+      </div>
+
+      <div className="mb-5 grid gap-5 xl:grid-cols-2">
+        <section className="bento-card p-5">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div><h2 className="text-[14px] font-extrabold text-[#1E2229]">Budget vs Consommé par enseigne</h2><p className="text-[11px] text-[#8B93A1]">Comparaison budget/engagé par marque</p></div>
+            <span className="bento-chip !py-1 !text-[10px]"><BarChart3 size={12} className="text-[#0E7A5F]" /> Enseignes</span>
+          </div>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={(summary.by_brand||[]).slice(0,8)} margin={{top:10,right:18,left:-10,bottom:0}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" vertical={false} />
+                <XAxis dataKey="label" tick={{fontSize:10,fill:'#9AA2AF'}} axisLine={false} tickLine={false} />
+                <YAxis tick={{fontSize:10,fill:'#9AA2AF'}} axisLine={false} tickLine={false} />
+                <Tooltip contentStyle={{borderRadius:14,border:'1px solid #F1E4C8',fontSize:11}} formatter={(v)=>money(v)} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{fontSize:10}} />
+                <Bar dataKey="budget" name="Budget" fill="#7FB69A" radius={[8,8,0,0]} />
+                <Bar dataKey="engaged" name="Consommé" fill="#16A37C" radius={[8,8,0,0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+        <section className="bento-card p-5">
+          <div className="mb-2 flex items-start justify-between gap-3">
+            <div><h2 className="text-[14px] font-extrabold text-[#1E2229]">Budget vs Consommé par ville</h2><p className="text-[11px] text-[#8B93A1]">Répartition géographique du portefeuille</p></div>
+            <span className="bento-chip !py-1 !text-[10px]"><PieIcon size={12} className="text-[#D8A441]" /> Villes</span>
+          </div>
+          <div className="h-[280px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={(summary.by_city||[]).slice(0,8)} layout="vertical" margin={{top:10,right:18,left:10,bottom:0}}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" horizontal={false} />
+                <XAxis type="number" tick={{fontSize:10,fill:'#9AA2AF'}} axisLine={false} tickLine={false} />
+                <YAxis type="category" dataKey="label" tick={{fontSize:10,fill:'#9AA2AF'}} axisLine={false} tickLine={false} width={90} />
+                <Tooltip contentStyle={{borderRadius:14,border:'1px solid #F1E4C8',fontSize:11}} formatter={(v)=>money(v)} />
+                <Legend iconType="circle" iconSize={8} wrapperStyle={{fontSize:10}} />
+                <Bar dataKey="budget" name="Budget" fill="#D8A441" radius={[0,8,8,0]} />
+                <Bar dataKey="engaged" name="Consommé" fill="#0E7A5F" radius={[0,8,8,0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
         </section>
       </div>

@@ -172,7 +172,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Metric icon={Wallet} label="Budget magasin" value={money(totals.storeBudget)} />
             <Metric icon={ClipboardList} label="Prévu catégories" value={money(totals.planned)} tone="#B8862F" />
-            <Metric icon={TrendingUp} label="Consommé DG" value={money(totals.used)} />
+            <Metric icon={TrendingUp} label="Consommé" value={money(totals.used)} />
             <Metric icon={CircleDollarSign} label="Non réparti" value={money(totals.unallocated)} danger={totals.unallocated < 0} />
           </div>
         </div>
@@ -214,7 +214,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
               <div className="mt-5 grid grid-cols-2 gap-3">
                 <div><div className="text-[10px] text-muted">Budget attribué</div><div className="text-[14px] font-black text-ink">{money(dept.allocated_budget)}</div></div>
                 <div><div className="text-[10px] text-muted">Prévu catégories</div><div className="text-[14px] font-black text-ink">{money(dept.planned_amount)}</div></div>
-                <div><div className="text-[10px] text-muted">Consommé DG</div><div className="text-[14px] font-black" style={{ color: dept.color }}>{money(dept.used_amount)}</div></div>
+                <div><div className="text-[10px] text-muted">Consommé</div><div className="text-[14px] font-black" style={{ color: dept.color }}>{money(dept.used_amount)}</div></div>
                 <div><div className="text-[10px] text-muted">Disponible</div><div className={`text-[14px] font-black ${dept.available_amount >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{money(dept.available_amount)}</div></div>
               </div>
               <div className="bento-track mt-4"><span style={{ width: `${usedPct}%`, background: dept.color }} /></div>
@@ -245,7 +245,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
                   <div className="mt-1 text-[15px] font-black text-ink">{money(activeDepartment.planned_amount)}</div>
                 </div>
                 <div className="rounded-xl border border-line/70 bg-white/70 px-4 py-3">
-                  <div className="text-[10px] font-bold uppercase tracking-wide text-muted">Consommé DG</div>
+                  <div className="text-[10px] font-bold uppercase tracking-wide text-muted">Consommé</div>
                   <div className="mt-1 text-[15px] font-black" style={{ color: activeDepartment.color }}>{money(activeDepartment.used_amount)}</div>
                 </div>
                 <div className="rounded-xl border border-line/70 bg-white/70 px-4 py-3">

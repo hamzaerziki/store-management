@@ -54,7 +54,13 @@ export function AuthProvider({ children }) {
     return !!(user && map[user.role]?.includes(permission));
   };
 
-  return <AuthContext.Provider value={{ user, loading, login, logout, can }}>{children}</AuthContext.Provider>;
+  function updateUser(nextUser) {
+    setUser(nextUser);
+    const store = localStorage.getItem('safari_token') ? localStorage : sessionStorage;
+    if (nextUser) store.setItem('safari_user', JSON.stringify(nextUser));
+  }
+
+  return <AuthContext.Provider value={{ user, loading, login, logout, can, updateUser }}>{children}</AuthContext.Provider>;
 }
 
 export const useAuth = () => useContext(AuthContext);
