@@ -340,7 +340,7 @@ router.post('/:id/validate', requireAuth, asyncRoute(async (req, res) => {
   const access = await readScope(req, 'i.store_id', 2);
   const result = await tx(async client => {
     const r = await client.query(
-      `SELECT c.*, i.estimated_budget, i.name AS item_name, i.store_id, i.owner_role, q.amount_ttc
+      `SELECT c.*, i.estimated_budget, i.name AS item_name, i.store_id, i.lot_id, i.owner_role, q.amount_ttc
        FROM comparisons c JOIN items i ON i.id=c.item_id
        LEFT JOIN quotes q ON q.id=c.selected_quote_id
        WHERE c.id=$1 ${access.clause} FOR UPDATE OF c`,
@@ -348,6 +348,7 @@ router.post('/:id/validate', requireAuth, asyncRoute(async (req, res) => {
     );
     const cmp = r.rows[0];
     if (!cmp) throw Object.assign(new Error('Comparatif introuvable'), { status: 404 });
+    await assertAssignment(req, cmp.store_id, cmp.lot_id || null);
     if (!canValidateDepartment(role, cmp.owner_role)) {
       throw Object.assign(new Error('Ce comparatif appartient à un autre département'), { status: 403 });
     }

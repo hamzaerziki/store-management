@@ -312,9 +312,10 @@ router.post('/:id/submit', requireAuth, can('manage_demands'), asyncRoute(async 
 }));
 
 router.delete('/:id', requireAuth, asyncRoute(async (req, res) => {
-  const old = await query('SELECT id, title, amount, status, store_id, item_id, created_by FROM demands WHERE id=$1', [req.params.id]);
+  const old = await query('SELECT id, title, amount, status, store_id, item_id, lot_id, created_by FROM demands WHERE id=$1', [req.params.id]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Demande introuvable' });
   const demand = old.rows[0];
+  await assertAssignment(req, demand.store_id, demand.lot_id || null);
   const draftOwnerOrAdmin = demand.status === 'draft' && (Number(demand.created_by) === Number(req.user.id) || req.user.role === 'admin');
   if (!draftOwnerOrAdmin) {
     return res.status(403).json({ error: 'Après soumission, une demande ne peut plus être supprimée' });
@@ -407,6 +408,7 @@ router.post('/:id/validate', requireAuth, asyncRoute(async (req, res) => {
     );
     const demand = r.rows[0];
     if (!demand) throw Object.assign(new Error('Demande introuvable'), { status: 404 });
+    await assertAssignment(req, demand.store_id, demand.lot_id || null);
     if (!canValidate(req.user.role, demand.status, demand.owner_role, demand.created_by, req.user.id, demand.created_by_role)) {
       throw Object.assign(new Error("Cette demande n'attend pas votre validation"), { status: 403 });
     }

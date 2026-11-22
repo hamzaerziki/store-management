@@ -179,6 +179,7 @@ router.post('/change-requests/:id/decision', requireAuth, asyncRoute(async (req,
   const access = await readScope(req, 'store_id', 2);
   const old = await query(`SELECT * FROM change_requests WHERE id=$1 ${access.clause} FOR UPDATE`, [req.params.id, ...access.params]);
   if (!old.rows[0]) return res.status(404).json({ error: 'Demande de changement introuvable' });
+  await assertAssignment(req, old.rows[0].store_id, old.rows[0].lot_id || null);
   if (Number(old.rows[0].created_by) === Number(req.user.id)) {
     return res.status(403).json({ error: 'Le créateur ne peut pas décider de sa propre demande' });
   }

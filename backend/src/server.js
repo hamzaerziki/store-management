@@ -68,6 +68,11 @@ app.use(cors({
   credentials: false,
 }));
 app.use(express.json({ limit: '2mb' }));
+app.use((req, res, next) => {
+  const tooManyKeys = (obj) => obj && typeof obj === 'object' && !Array.isArray(obj) && Object.keys(obj).length > 200;
+  if (tooManyKeys(req.body) || tooManyKeys(req.query)) return res.status(400).json({ error: 'Payload invalide' });
+  next();
+});
 app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   req.id = crypto.randomUUID();
@@ -89,7 +94,13 @@ app.use('/api', limiter);
 
 fs.mkdirSync(path.resolve(config.uploadDir), { recursive: true });
 app.param('id', (req, res, next, value) => {
-  if (value !== undefined && !/^[0-9]+$/.test(String(value))) return res.status(400).json({ error: 'Identifiant invalide' });
+  if (value !== undefined && !/^[1-9][0-9]*$/.test(String(value))) return res.status(400).json({ error: 'Identifiant invalide' });
+  req.params.id = String(Number(value));
+  next();
+});
+app.param('resource', (req, res, next, value) => {
+  const allowed = new Set(['purchase_orders','invoices','payments','incidents','claims','risks']);
+  if (!allowed.has(String(value || ''))) return res.status(400).json({ error: 'Ressource invalide' });
   next();
 });
 

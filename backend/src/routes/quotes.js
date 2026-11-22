@@ -55,12 +55,16 @@ const pdfUpload = multer({
   },
 });
 
-async function assertFileToken(ft) {
+async function assertFileToken(req, ft) {
   if (!ft?.uid) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
-  const u = await query('SELECT id, token_version, active FROM users WHERE id=$1', [ft.uid]);
-  if (!u.rows[0]?.active) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
-  if (Number(u.rows[0].token_version || 0) !== Number(ft.ver || 0)) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
+  const u = await query('SELECT id, role, name, token_version, active FROM users WHERE id=$1', [ft.uid]);
+  const user = u.rows[0];
+  if (!user?.active) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
+  if (Number(user.token_version || 0) !== Number(ft.ver || 0)) throw Object.assign(new Error('Lien de fichier invalide ou expiré'), { status: 401 });
+  req.user = { id: user.id, role: user.role, name: user.name, ver: Number(user.token_version || 0) };
+  return req.user;
 }
+
 const router = Router();
 
 function isPdf(file) {
@@ -524,13 +528,18 @@ router.get('/:id/file-token', requireAuth, asyncRoute(async (req, res) => {
 router.get('/:id/file', asyncRoute(async (req, res) => {
   const ft = verifyFileToken(req.query.ft, { kind: 'quote', id: req.params.id, action: 'view' });
   if (!ft) return res.status(401).json({ error: 'Lien de fichier invalide ou expiré' });
-  await assertFileToken(ft);
-  const r = await query('SELECT file_url FROM quotes WHERE id=$1', [req.params.id]);
+  await assertFileToken(req, ft);
+  const r = await query(
+    `SELECT q.file_url, COALESCE(i.store_id, d.store_id) AS store_id, q.lot_id
+       FROM quotes q LEFT JOIN items i ON i.id=q.item_id LEFT JOIN demands d ON d.id=q.demand_id
+      WHERE q.id=$1`, [req.params.id]
+  );
   const row = r.rows[0];
   if (!row?.file_url) return res.status(404).json({ error: 'Fichier introuvable' });
+  await assertAssignment(req, row.store_id, row.lot_id || null);
   const filePath = resolveUpload(row.file_url);
   if (!filePath || !fs.existsSync(filePath)) return res.status(404).json({ error: 'Fichier introuvable' });
-  const filename = path.basename(filePath).replace(/[\r\n"]/g, '') || 'devis';
+  const filename = path.basename(filePath).replace(/[\r\n"']/g, '') || 'devis';
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
   res.sendFile(filePath);
