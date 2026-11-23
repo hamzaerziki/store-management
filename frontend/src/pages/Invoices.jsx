@@ -12,11 +12,18 @@ const dateFR = value => value ? new Date(value).toLocaleDateString('fr-FR', { da
 const EMPTY_INVOICE = { store_id: '', lot_label: '', supplier_id: '', purchase_order_id: '', reference: '', amount_ht: '', amount_ttc: '', invoice_date: '', due_date: '' };
 const EMPTY_PAYMENT = { invoice_id: '', amount: '', finance_reference: '', support_name: '', paid_at: '', method: 'Virement' };
 
-function Kpi({ label, value, tone = '#0E7A5F' }) {
+function Kpi({ label, value, tone = '#0E7A5F', sub, icon: Icon = Receipt }) {
   return (
-    <div className="bento-kpi !p-4">
-      <div className="text-[10px] font-bold uppercase tracking-wide text-[#8B93A1]">{label}</div>
-      <div className="mt-1 text-[18px] font-extrabold" style={{ color: tone }}>{value}</div>
+    <div className="bento-kpi">
+      <div className="flex items-start justify-between gap-2">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl" style={{ background: `${tone}1A`, color: tone }}>
+          <Icon size={18} />
+        </div>
+        <span className="rounded-full px-2 py-1 text-[9px] font-extrabold" style={{ background: '#EAF6F2', color: tone }}>KPI</span>
+      </div>
+      <div className="mt-4 text-[11px] font-bold uppercase tracking-wide text-[#8B93A1]">{label}</div>
+      <div className="mt-1 text-[22px] font-extrabold tracking-tight text-[#1E2229]">{value}</div>
+      {sub && <div className="mt-2 text-[10px] leading-snug text-[#8B93A1]">{sub}</div>}
     </div>
   );
 }
@@ -154,8 +161,8 @@ export default function Invoices({ embedded = false, fixedStoreId = null }) {
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Kpi label="Factures" value={normalInvoices.length} tone="#1E2229" />
         <Kpi label="Total TTC" value={money(totalTtc)} tone="#0E7A5F" />
-        <Kpi label="Pay?" value={money(totalPaid)} tone="#16A37C" />
-        <Kpi label="Solde d?" value={money(totalDue)} tone="#B8862F" />
+        <Kpi label="Payé" value={money(totalPaid)} tone="#16A37C" />
+        <Kpi label="Solde dû" value={money(totalDue)} tone="#B8862F" />
       </div>
 
       <div className="bento-card overflow-hidden">
