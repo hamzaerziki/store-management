@@ -50,7 +50,11 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
      ON CONFLICT (store_id, category_id, department) DO NOTHING`
   );
 
-  const [deptResult, categoryResult, supplierResult, lineResult] = await Promise.all([
+  await query(`INSERT INTO budget_branches (store_id, code, label, color, position)
+    SELECT $1, v.code, v.label, v.color, v.position FROM (VALUES ('IT','IT','#0E7A5F',1),('MG','MG','#B8862F',2)) v(code,label,color,position)
+    ON CONFLICT (store_id, code) DO NOTHING`, [storeId]).catch(()=>{});
+  const [branchResult, deptResult, categoryResult, supplierResult, lineResult] = await Promise.all([
+    query(`SELECT id, code, label, color, allocated_budget, position FROM budget_branches WHERE store_id=$1 ORDER BY position, id`, [storeId]).catch(async()=>({rows:[{id:0,code:'IT',label:'IT',color:'#0E7A5F',allocated_budget:0,position:1},{id:0,code:'MG',label:'MG',color:'#B8862F',allocated_budget:0,position:2}]})),
     query(
       `WITH planned AS (
          SELECT bc.department, ROUND(SUM(bc.planned_amount), 2) AS planned_amount
@@ -60,17 +64,23 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
          GROUP BY bc.department
        ),
        consumed AS (
-         SELECT CASE WHEN owner_role='IT' THEN 'IT' ELSE 'MG' END AS department,
-                ROUND(SUM(amount), 2) AS used_amount,
+         SELECT CASE WHEN owner_role IN ('IT','MG') THEN owner_role ELSE bc2.department END AS department,
+                ROUND(SUM(d.amount), 2) AS used_amount,
                 COUNT(*)::int AS approved_demand_count
-         FROM demands
-         WHERE store_id=$1 AND status='approved'
-         GROUP BY CASE WHEN owner_role='IT' THEN 'IT' ELSE 'MG' END
+         FROM demands d
+         LEFT JOIN LATERAL (
+           SELECT bc.department FROM budget_categories bc
+           JOIN items i ON i.category_id=bc.category_id AND i.store_id=bc.store_id
+           WHERE bc.store_id=d.store_id AND i.id=d.item_id
+           LIMIT 1
+         ) bc2 ON true
+         WHERE d.store_id=$1 AND d.status='approved'
+         GROUP BY 1
        ),
        departments AS (
-         SELECT department FROM planned
-         UNION
-         SELECT department FROM consumed
+         SELECT code AS department FROM budget_branches WHERE store_id=$1
+         UNION SELECT department FROM planned
+         UNION SELECT department FROM consumed WHERE department IS NOT NULL
        )
        SELECT dp.department,
               COALESCE(pl.planned_amount, 0) AS planned_amount,
@@ -79,7 +89,7 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
        FROM departments dp
        LEFT JOIN planned pl ON pl.department=dp.department
        LEFT JOIN consumed cs ON cs.department=dp.department
-       ORDER BY dp.department DESC`,
+       ORDER BY dp.department`,
       [storeId]
     ),
     query(
@@ -127,14 +137,22 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
 
   const totalPlanned = deptResult.rows.reduce((sum, row) => sum + Number(row.planned_amount || 0), 0);
   const storeBudget = Number(store.budget || 0);
+  const branchByCode = new Map(branchResult.rows.map(b => [b.code, b]));
   const departments = deptResult.rows.map(row => {
     const planned = Number(row.planned_amount || 0);
+    const branch = branchByCode.get(row.department) || {};
+    const explicitAllocated = Number(branch.allocated_budget || 0);
+    const fallbackAllocated = totalPlanned ? Math.round(storeBudget * planned / totalPlanned * 100) / 100 : 0;
     return {
       department: row.department,
+      id: row.department,
+      label: branch.label || row.department,
+      color: branch.color || (row.department==='IT'?'#0E7A5F':row.department==='MG'?'#B8862F':'#3B82F6'),
       planned_amount: planned,
       used_amount: Number(row.used_amount || 0),
-      approved_demand_count: Number(row.approved_demand_count || 0), consumed_amount: Number(row.used_amount || 0),
-      allocated_budget: totalPlanned ? Math.round(storeBudget * planned / totalPlanned * 100) / 100 : 0,
+      approved_demand_count: Number(row.approved_demand_count || 0),
+      consumed_amount: Number(row.used_amount || 0),
+      allocated_budget: explicitAllocated > 0 ? explicitAllocated : fallbackAllocated,
     };
   });
   const suppliersByCategory = supplierResult.rows.reduce((acc, row) => {
@@ -159,28 +177,50 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
   });
 }));
 
+router.post('/branches', requireAuth, can('manage_catalog'), asyncRoute(async (req, res) => {
+  const { store_id, name, code, color, allocated_budget } = req.body || {};
+  const storeId = Number(store_id);
+  if (!storeId) return res.status(400).json({ error: 'Magasin requis' });
+  const label = String(name || code || '').trim();
+  const cleanCode = String(code || label).toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,20);
+  if (!label || !cleanCode) return res.status(400).json({ error: 'Nom de branche requis' });
+  const r = await query(
+    `INSERT INTO budget_branches (store_id, code, label, color, allocated_budget, position)
+     VALUES ($1,$2,$3,$4,$5, COALESCE((SELECT MAX(position)+1 FROM budget_branches WHERE store_id=$1),1))
+     ON CONFLICT (store_id, code) DO UPDATE SET label=EXCLUDED.label, color=EXCLUDED.color, allocated_budget=EXCLUDED.allocated_budget, updated_at=NOW()
+     RETURNING *`,
+    [storeId, cleanCode, label, String(color||'#0E7A5F').slice(0,20), Number(allocated_budget)||0]
+  );
+  res.status(201).json(r.rows[0]);
+}));
+
 router.post('/categories', requireAuth, can('manage_catalog'), asyncRoute(async (req, res) => {
-  const { name, owner_role, department, planned_amount } = req.body || {};
+  const { name, owner_role, department, planned_amount, store_id } = req.body || {};
   const cleanName = String(name || '').trim();
-  const cleanDepartment = department === 'IT' || department === 'MG' ? department : null;
+  const cleanDepartment = String(department || '').toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,20);
   if (!cleanName || !cleanDepartment) {
-    return res.status(400).json({ error: 'Nom et département sont requis' });
+    return res.status(400).json({ error: 'Nom et branche sont requis' });
   }
-  const scope = ['IT', 'MG', 'BOTH'].includes(owner_role) ? owner_role : cleanDepartment;
+  const scope = ['IT', 'MG', 'BOTH'].includes(owner_role) ? owner_role : (['IT','MG'].includes(cleanDepartment) ? cleanDepartment : 'BOTH');
   const category = await query(
     `INSERT INTO categories (name, owner_role) VALUES ($1, $2)
      ON CONFLICT (name) DO UPDATE SET owner_role=EXCLUDED.owner_role RETURNING id, name, owner_role`,
     [cleanName, scope]
   );
   const amount = Number(planned_amount) || 0;
+  const storeId = Number(store_id);
   const budgets = await query(
-    `INSERT INTO budget_categories (store_id, category_id, department, planned_amount)
-     SELECT s.id, $2, $3, $4 FROM stores s
-     ON CONFLICT (store_id, category_id, department) DO UPDATE
-     SET planned_amount=EXCLUDED.planned_amount
-     WHERE budget_categories.planned_amount=0 AND EXCLUDED.planned_amount>0
-     RETURNING *`,
-    [category.rows[0].id, cleanDepartment, amount]
+    storeId
+      ? `INSERT INTO budget_categories (store_id, category_id, department, planned_amount)
+         VALUES ($1,$2,$3,$4)
+         ON CONFLICT (store_id, category_id, department) DO UPDATE SET planned_amount=EXCLUDED.planned_amount
+         RETURNING *`
+      : `INSERT INTO budget_categories (store_id, category_id, department, planned_amount)
+         SELECT s.id, $1, $2, $3 FROM stores s
+         ON CONFLICT (store_id, category_id, department) DO UPDATE SET planned_amount=EXCLUDED.planned_amount
+         WHERE budget_categories.planned_amount=0 AND EXCLUDED.planned_amount>0
+         RETURNING *`,
+    storeId ? [storeId, category.rows[0].id, cleanDepartment, amount] : [category.rows[0].id, cleanDepartment, amount]
   );
   res.status(201).json({ ...category.rows[0], budgets: budgets.rows });
 }));

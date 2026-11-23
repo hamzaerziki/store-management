@@ -4,10 +4,11 @@ import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { Card, CardHead, PageHeader, Field, Modal, ErrorBox, ExecutionStatusSelect, StatusBadge, money, dateFR } from '../components/ui';
 
-const DEPARTMENTS = [
-  { id: 'IT', label: 'IT', color: '#0E7A5F', soft: '#E8F6F1', icon: Layers },
-  { id: 'MG', label: 'MG', color: '#B8862F', soft: '#FBF3E2', icon: Building2 },
-];
+const DEFAULT_BRANCH_META = {
+  IT: { color: '#0E7A5F', soft: '#E8F6F1', icon: Layers },
+  MG: { color: '#B8862F', soft: '#FBF3E2', icon: Building2 },
+};
+const branchMeta = (id) => DEFAULT_BRANCH_META[id] || { color:'#3B82F6', soft:'#EFF6FF', icon:GitBranch };
 
 function Metric({ icon: Icon, label, value, tone = '#0E7A5F', danger = false }) {
   return (
@@ -31,7 +32,9 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
   const [supplierDemands, setSupplierDemands] = useState([]);
   const [supplierError, setSupplierError] = useState('');
   const [openCategory, setOpenCategory] = useState(false);
+  const [openBranch, setOpenBranch] = useState(false);
   const [categoryForm, setCategoryForm] = useState({ name: '', department: 'MG', owner_role: 'MG', planned_amount: '' });
+  const [branchForm, setBranchForm] = useState({ name: '', code: '', color: '#0E7A5F', allocated_budget: '' });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
 
@@ -68,19 +71,24 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
       .catch(e => { setSupplierDemands([]); setSupplierError(e?.message || 'Chargement impossible'); });
   }, [supplierId, effectiveStoreId]);
 
-  const departmentRows = useMemo(() => DEPARTMENTS.map(meta => {
-    const apiRow = (data?.departments || []).find(row => row.department === meta.id);
-    const rows = (data?.categories || []).filter(row => row.department === meta.id);
-    const planned = Number(apiRow?.planned_amount ?? rows.reduce((sum, row) => sum + Number(row.planned_amount || 0), 0));
-    const used = Number(apiRow?.used_amount ?? rows.reduce((sum, row) => sum + Number(row.used_amount || 0), 0));
+  const departmentRows = useMemo(() => (data?.departments || []).map(row => {
+    const meta = branchMeta(row.department);
+    const cats = (data?.categories || []).filter(c => c.department === row.department);
+    const planned = Number(row.planned_amount ?? cats.reduce((sum, c) => sum + Number(c.planned_amount || 0), 0));
+    const used = Number(row.used_amount ?? cats.reduce((sum, c) => sum + Number(c.used_amount || 0), 0));
+    const allocated = Number(row.allocated_budget || 0);
     return {
-      ...meta,
+      id: row.department,
+      label: row.label || row.department,
+      color: row.color || meta.color,
+      soft: meta.soft,
+      icon: meta.icon,
       planned_amount: planned,
       used_amount: used,
-      approved_demand_count: Number(apiRow?.approved_demand_count || 0),
-      allocated_budget: Number(apiRow?.allocated_budget || 0),
-      available_amount: Math.round((Number(apiRow?.allocated_budget || 0) - used) * 100) / 100,
-      category_count: rows.length,
+      approved_demand_count: Number(row.approved_demand_count || 0),
+      allocated_budget: allocated,
+      available_amount: Math.round((allocated - used) * 100) / 100,
+      category_count: cats.length,
     };
   }), [data]);
 
@@ -110,10 +118,21 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
   async function createCategory(e) {
     e.preventDefault(); setError(''); setNotice('');
     try {
-      await api.post('/category-budgets/categories', categoryForm);
+      await api.post('/category-budgets/categories', { ...categoryForm, store_id: effectiveStoreId });
       setOpenCategory(false);
-      setCategoryForm({ name: '', department: 'MG', owner_role: 'MG', planned_amount: '' });
-      setNotice('Catégorie ajoutée (visible sur tous les magasins)');
+      setCategoryForm({ name: '', department: departmentRows[0]?.id || 'MG', owner_role: 'MG', planned_amount: '' });
+      setNotice('Catégorie ajoutée à la branche');
+      load();
+    } catch (e) { setError(e); }
+  }
+
+  async function createBranch(e) {
+    e.preventDefault(); setError(''); setNotice('');
+    try {
+      await api.post('/category-budgets/branches', { ...branchForm, store_id: effectiveStoreId });
+      setOpenBranch(false);
+      setBranchForm({ name: '', code: '', color: '#0E7A5F', allocated_budget: '' });
+      setNotice('Branche ajoutée');
       load();
     } catch (e) { setError(e); }
   }
@@ -150,7 +169,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
           <h3 className="text-[18px] font-extrabold text-ink">IT / MG → catégories → articles</h3>
           <p className="mt-1 text-[12px] text-muted">Cliquez sur une branche pour voir son budget, ses catégories et la consommation DG.</p>
         </div>
-        {can('manage_catalog') && <div className="flex justify-start xl:justify-end"><button className="bento-btn bento-btn-primary" onClick={() => setOpenCategory(true)}><Plus size={15} /> Nouvelle catégorie</button></div>}
+        {can('manage_catalog') && <div className="flex justify-start gap-2 xl:justify-end"><button className="bento-btn" onClick={() => setOpenBranch(true)}><Plus size={15} /> Nouvelle branche</button><button className="bento-btn bento-btn-primary" onClick={() => { setCategoryForm(f=>({ ...f, department: department !== 'ALL' ? department : (departmentRows[0]?.id||'MG') })); setOpenCategory(true); }}><Plus size={15} /> Nouvelle catégorie</button></div>}
       </div>
 
       {notice && <div className="bento-card mb-4 border-emerald-200 bg-emerald-50/70 p-3 text-[12px] font-semibold text-emerald-800">{notice}</div>}
@@ -187,12 +206,12 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h4 className="text-[13px] font-extrabold text-ink">Branches du magasin</h4>
-          <p className="text-[10.5px] text-muted">Deux budgets distincts, chacun relié à ses catégories.</p>
+          <p className="text-[10.5px] text-muted">Budgets distincts par branche, chacun relié à ses catégories.</p>
         </div>
         {department !== 'ALL' && <button className="bento-btn !py-1.5 !px-3 !text-[10.5px]" onClick={() => chooseDepartment('ALL')}><ArrowLeft size={12} /> Toutes les branches</button>}
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {departmentRows.map(dept => {
           const Icon = dept.icon;
           const isActive = department === dept.id;
@@ -324,7 +343,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
 
       {!activeDepartment && (
         <div className="bento-card mt-5 p-5 text-[12px] text-muted">
-          Sélectionnez la branche <b className="text-ink">IT</b> ou <b className="text-ink">MG</b> pour afficher ses catégories, ses articles et la consommation du budget.
+          Sélectionnez une branche pour afficher ses catégories, ses articles et la consommation du budget.
         </div>
       )}
 
@@ -368,13 +387,13 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
         )}
       </section>}
 
-      <Modal open={openCategory} onClose={() => setOpenCategory(false)} title="Nouvelle catégorie budgétaire" wide>
+      <Modal open={openCategory} onClose={() => setOpenCategory(false)} title="Nouvelle catégorie" wide>
         <form className="space-y-5" onSubmit={createCategory}>
           <div className="grid gap-4 md:grid-cols-[1.5fr_1fr]">
             <Field label="Nom de la catégorie">
               <div className="relative">
                 <Layers size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                <input className="bento-input !pl-9" value={categoryForm.name} onChange={e => setCategoryForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex. Signalétique événementielle" required />
+                <input className="bento-input !pl-9" value={categoryForm.name} onChange={e => setCategoryForm(f => ({ ...f, name: e.target.value }))} placeholder="Ex. Signalétique" required />
               </div>
             </Field>
             <Field label="Budget prévu (MAD)">
@@ -386,8 +405,8 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <Field label="Branche">
-              <select className="bento-select" value={categoryForm.department} onChange={e => setCategoryForm(f => ({ ...f, department: e.target.value, owner_role: e.target.value }))}>
-                <option value="IT">IT — technologies et sécurité</option><option value="MG">MG — travaux et aménagement</option>
+              <select className="bento-select" value={categoryForm.department} onChange={e => setCategoryForm(f => ({ ...f, department: e.target.value, owner_role: ['IT','MG'].includes(e.target.value)?e.target.value:'BOTH' }))}>
+                {departmentRows.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
               </select>
             </Field>
             <Field label="Périmètre">
@@ -397,6 +416,20 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
             </Field>
           </div>
           <div className="flex justify-end gap-2 border-t border-line/70 pt-4"><button type="button" className="bento-btn" onClick={() => setOpenCategory(false)}>Annuler</button><button className="bento-btn bento-btn-primary">Créer la catégorie</button></div>
+        </form>
+      </Modal>
+
+      <Modal open={openBranch} onClose={() => setOpenBranch(false)} title="Nouvelle branche">
+        <form onSubmit={createBranch} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Nom de la branche"><input className="bento-input" value={branchForm.name} onChange={e => setBranchForm(f => ({ ...f, name: e.target.value, code: f.code || e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,20) }))} required /></Field>
+            <Field label="Code"><input className="bento-input" value={branchForm.code} onChange={e => setBranchForm(f => ({ ...f, code: e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g,'').slice(0,20) }))} required /></Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Field label="Budget attribué (MAD)"><input className="bento-input" type="number" min="0" step="0.01" value={branchForm.allocated_budget} onChange={e => setBranchForm(f => ({ ...f, allocated_budget: e.target.value }))} /></Field>
+            <Field label="Couleur"><input className="bento-input h-11" type="color" value={branchForm.color} onChange={e => setBranchForm(f => ({ ...f, color: e.target.value }))} /></Field>
+          </div>
+          <div className="flex justify-end gap-2 pt-2"><button type="button" className="bento-btn" onClick={() => setOpenBranch(false)}>Annuler</button><button className="bento-btn bento-btn-primary">Créer la branche</button></div>
         </form>
       </Modal>
     </div>
