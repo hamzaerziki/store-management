@@ -332,6 +332,7 @@ export default function StoreDetail() {
   function openBundle() {
     setError(''); setNotice(''); setBundleFile(null); setEnterpriseOpen(false); setEnterpriseName('');
     setBundleForm({ title: '', kind: 'article', category_id: '', description: '', deadline: '', supplier_id: '', amount_ht: '', vat_mode: '20', vat_rate: '20', amount_tva: '', amount_ttc: '', notes: '' });
+    api.get('/categories').then(r => setCategories(r.data)).catch(() => {});
     setBundleOpen(true);
   }
 
