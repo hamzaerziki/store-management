@@ -148,11 +148,14 @@ export default function StoreDetail() {
     if (['MG', 'RMG'].includes(role)) return ['MG', 'BOTH'].includes(c.owner_role);
     return true;
   };
-  const visibleCategories = categories.filter(c => /^\d{2} — /.test(c.name) && allowedCategory(c));
+  const visibleCategories = categories.filter(c => allowedCategory(c));
+  const branchCodes = [...new Set(visibleCategories.map(c => c.owner_role).filter(r => ['IT','MG','BOTH'].includes(r)))];
+  const extraGroups = [...new Set(visibleCategories.filter(c => !/^\d{2} — /.test(c.name)).map(c => c.owner_role || 'Autre'))];
   const categoryGroups = [
     { label: 'IT', rows: visibleCategories.filter(c => c.owner_role === 'IT' || c.owner_role === 'BOTH') },
     { label: 'MG', rows: visibleCategories.filter(c => c.owner_role === 'MG' || c.owner_role === 'BOTH') },
-  ].filter(group => group.rows.length);
+    ...extraGroups.filter(g => !['IT','MG','BOTH'].includes(g)).map(g => ({ label: g, rows: visibleCategories.filter(c => c.owner_role === g) })),
+  ].filter((group, idx, arr) => group.rows.length && arr.findIndex(x=>x.label===group.label)===idx);
 
   const loadDocuments = () => api.get(`/documents?store_id=${id}`).then(r => setDocuments(r.data)).catch(() => {});
   const loadPlanning = () => api.get(`/operations/planning_tasks?store_id=${id}`).then(r => setPlanningTasks(r.data)).catch(() => {});
@@ -416,6 +419,9 @@ export default function StoreDetail() {
     .filter(d => !search || `${d.title} ${d.kind}`.toLowerCase().includes(search.toLowerCase()))
     .filter(d => !supplierFilter || (d.quotes || []).some(q => String(q.supplier_id) === String(supplierFilter)))
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime() || Number(b.id) - Number(a.id));
+  const demandTotalPages = Math.max(1, Math.ceil(filteredDemands.length / DEMAND_PAGE_SIZE));
+  const safeDemandPage = Math.min(demandPage, demandTotalPages);
+  const visibleDemands = filteredDemands.slice((safeDemandPage - 1) * DEMAND_PAGE_SIZE, safeDemandPage * DEMAND_PAGE_SIZE);
 
   const usableCategories = categories.filter(c => user?.role === 'admin' || c.owner_role === user?.role || c.owner_role === 'BOTH');
   const usableTemplates = templates.filter(t => user?.role === 'admin' || t.owner_role === user?.role);
