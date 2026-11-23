@@ -378,7 +378,7 @@ export default function Demands() {
             <Field label="Magasin"><select className="input" value={editForm.store_id} onChange={e => setEditForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">Sélectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
             <Field label="Type"><select className="input" value={editForm.kind} onChange={e => setEditForm(f => ({ ...f, kind: e.target.value }))}><option value="article">Article</option><option value="mission">Mission</option></select></Field>
           </div>
-          <Field label="Intitul?"><input className="input" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required /></Field>
+          <Field label="Intitulé"><input className="input" value={editForm.title} onChange={e => setEditForm(f => ({ ...f, title: e.target.value }))} required /></Field>
           <Field label="Description"><textarea className="input min-h-[75px]" value={editForm.description} onChange={e => setEditForm(f => ({ ...f, description: e.target.value }))} /></Field>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Montant HT (MAD)"><input type="number" step="0.01" className="input" value={editForm.amount_ht} onChange={e => setEditForm(f => ({ ...f, amount_ht: e.target.value }))} required /></Field>
@@ -400,7 +400,7 @@ export default function Demands() {
             <Field label="Magasin"><select className="input" value={draftForm.store_id} onChange={e => setDraftForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">Sélectionner</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>
             <Field label="Type"><select className="input" value={draftForm.kind} onChange={e => setDraftForm(f => ({ ...f, kind: e.target.value }))}><option value="article">Article</option><option value="mission">Mission</option></select></Field>
           </div>
-          <Field label="Intitul?"><input className="input" value={draftForm.title} onChange={e => setDraftForm(f => ({ ...f, title: e.target.value }))} required /></Field>
+          <Field label="Intitulé"><input className="input" value={draftForm.title} onChange={e => setDraftForm(f => ({ ...f, title: e.target.value }))} required /></Field>
           <Field label="Description"><textarea className="input min-h-[75px]" value={draftForm.description} onChange={e => setDraftForm(f => ({ ...f, description: e.target.value }))} /></Field>
           <div className="grid grid-cols-3 gap-3">
             <Field label="Montant HT (MAD)"><input type="number" step="0.01" className="input" value={draftForm.amount_ht} onChange={e => setDraftForm(f => ({ ...f, amount_ht: e.target.value }))} /></Field>

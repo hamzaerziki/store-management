@@ -372,22 +372,22 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
       <Modal open={modal} onClose={() => setModal(false)} title={form.id ? 'Modifier la tâche' : 'Nouvelle tâche de planning'} wide>
         <form onSubmit={save} className="space-y-4">
           <div className="grid md:grid-cols-2 gap-4">
-            <Field label="Intitul?" className="md:col-span-2"><input className="bento-input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required /></Field>
-            {!fixedStoreId && <Field label="Magasin"><select className="bento-select" value={form.store_id} onChange={e => setForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">Choisir?</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>}
-            <Field label="Zone / chantier (libre)"><input className="bento-input" value={form.lot_label} onChange={e => setForm(f => ({ ...f, lot_label: e.target.value }))} placeholder="Ex. Génie civil, enseigne?" /></Field>
+            <Field label="Intitulé" className="md:col-span-2"><input className="bento-input" value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} required /></Field>
+            {!fixedStoreId && <Field label="Magasin"><select className="bento-select" value={form.store_id} onChange={e => setForm(f => ({ ...f, store_id: e.target.value }))} required><option value="">Choisir…</option>{stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></Field>}
+            <Field label="Zone / chantier (libre)"><input className="bento-input" value={form.lot_label} onChange={e => setForm(f => ({ ...f, lot_label: e.target.value }))} placeholder="Ex. Génie civil, enseigne…" /></Field>
             <Field label="Date de début"><input type="date" className="bento-input" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} required /></Field>
             <Field label="Date de fin"><input type="date" className="bento-input" value={form.end_date} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} required /></Field>
-            <Field label="Responsable"><input className="bento-input" value={form.owner_role} onChange={e => setForm(f => ({ ...f, owner_role: e.target.value }))} placeholder="Ex. IT, MG, RMG?" /></Field>
+            <Field label="Responsable"><input className="bento-input" value={form.owner_role} onChange={e => setForm(f => ({ ...f, owner_role: e.target.value }))} placeholder="Ex. IT, MG, RMG…" /></Field>
             <Field label="Statut d'exécution">
               <select className="bento-select" value={form.execution_status} onChange={e => { const opt = EXECUTION_OPTIONS.find(o => o.value === e.target.value) || EXECUTION_OPTIONS[0]; setForm(f => ({ ...f, execution_status: opt.value, progress: opt.progress, state: opt.state })); }}>
                 {EXECUTION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
-              <div className="mt-1 text-[10px] text-[#8B93A1]">Validé (0%) ? En cours (50%) ? Livré/Installé (100%)</div>
+              <div className="mt-1 text-[10px] text-[#8B93A1]">Validé (0%) → En cours (50%) → Livré/Installé (100%)</div>
             </Field>
             <Field label="Poids"><input type="number" min="1" className="bento-input" value={form.weight} onChange={e => setForm(f => ({ ...f, weight: e.target.value }))} /></Field>
             <Field label="Dépend de"><select className="bento-select" value={form.depends_on} onChange={e => setForm(f => ({ ...f, depends_on: e.target.value }))}><option value="">Aucune dépendance</option>{tasks.filter(t => !form.id || t.id !== form.id).map(t => <option key={t.id} value={t.id}>{t.store_name} ? {t.name}</option>)}</select></Field>
             <Field label="Jalon"><select className="bento-select" value={form.milestone ? 'true' : 'false'} onChange={e => setForm(f => ({ ...f, milestone: e.target.value === 'true' }))}><option value="false">Non</option><option value="true">Oui</option></select></Field>
-            <Field label="Motif de modification" className="md:col-span-2"><textarea className="bento-input min-h-[80px]" value={form.change_reason} onChange={e => setForm(f => ({ ...f, change_reason: e.target.value }))} placeholder="Motif du changement?" /></Field>
+            <Field label="Motif de modification" className="md:col-span-2"><textarea className="bento-input min-h-[80px]" value={form.change_reason} onChange={e => setForm(f => ({ ...f, change_reason: e.target.value }))} placeholder="Motif du changement…" /></Field>
           </div>
           <div className="flex justify-end gap-2 pt-2"><button type="button" className="bento-btn" onClick={() => setModal(false)}>Annuler</button><button className="bento-btn bento-btn-primary">{form.id ? 'Enregistrer les modifications' : 'Créer la tâche'}</button></div>
         </form>

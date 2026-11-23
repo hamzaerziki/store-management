@@ -14,8 +14,7 @@ router.param('id', (req, res, next, value) => {
   next();
 });
 router.param('resource', (req, res, next, value) => {
-  const allowed = new Set(['purchase_orders','invoices','payments','incidents','claims','risks']);
-  if (!allowed.has(String(value || ''))) return res.status(400).json({ error: 'Ressource invalide' });
+  if (!RESOURCES[String(value || '')]) return res.status(400).json({ error: 'Ressource invalide' });
   next();
 });
 
