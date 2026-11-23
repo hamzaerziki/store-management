@@ -54,12 +54,18 @@ function chainOf(task, byId) {
   return chain;
 }
 
-function Kpi({ label, value, sub, tone = '#1E2229' }) {
+function Kpi({ label, value, sub, tone = '#0E7A5F' }) {
   return (
-    <div className="bento-kpi !p-4">
-      <div className="text-[10.5px] font-semibold text-[#8B93A1]">{label}</div>
-      <div className="mt-1 text-[22px] font-extrabold" style={{ color: tone }}>{value}</div>
-      {sub && <div className="mt-1 text-[10px] text-[#8B93A1]">{sub}</div>}
+    <div className="bento-kpi">
+      <div className="flex items-start justify-between gap-2">
+        <div className="grid h-10 w-10 place-items-center rounded-2xl" style={{ background: `${tone}1A`, color: tone }}>
+          <CalendarRange size={18} />
+        </div>
+        <span className="rounded-full px-2 py-1 text-[9px] font-extrabold" style={{ background: '#EAF6F2', color: tone }}>KPI</span>
+      </div>
+      <div className="mt-4 text-[11px] font-bold uppercase tracking-wide text-[#8B93A1]">{label}</div>
+      <div className="mt-1 text-[22px] font-extrabold tracking-tight text-[#1E2229]">{value}</div>
+      {sub && <div className="mt-2 text-[10px] leading-snug text-[#8B93A1]">{sub}</div>}
     </div>
   );
 }
@@ -74,7 +80,7 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
   const [zone, setZone] = useState('');
   const [owner, setOwner] = useState('');
   const [search, setSearch] = useState('');
-  const [statusView, setStatusView] = useState('active');
+  const [statusView, setStatusView] = useState('all');
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [selectedTaskId, setSelectedTaskId] = useState('');
   const [versions, setVersions] = useState([]);
@@ -218,7 +224,7 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
           <select className="bento-select w-44" value={owner} onChange={e => setOwner(e.target.value)}><option value="">Tous les responsables</option>{owners.map(o => <option key={o} value={o}>{o}</option>)}</select>
           <input className="bento-input w-56" value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une tâche…" />
           <select className="bento-select w-44" value={statusView} onChange={e => setStatusView(e.target.value)}>
-            <option value="active">Actives (défaut)</option><option value="in_progress">En cours (50%)</option><option value="not_started">Validé (0%)</option><option value="late">En retard</option><option value="all">Tout</option>
+            <option value="all">Tout (défaut)</option><option value="active">Actives</option><option value="not_started">Validé (0%)</option><option value="in_progress">En cours (50%)</option><option value="done">Terminées (100%)</option><option value="late">En retard</option>
           </select>
           <div className="ml-auto flex flex-wrap items-center gap-3 text-[10.5px] text-[#8B93A1]">
             <span className="flex items-center gap-1.5"><i className="w-5 h-3 rounded bg-slate-400 inline-block" /> 0%</span>
@@ -230,11 +236,11 @@ export default function Planning({ embedded = false, fixedStoreId = null }) {
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-5">
-        <Kpi label="Affichées" value={gantTasks.length} sub={`sur ${shown.length} tâche(s)`} />
+        <Kpi label="Affichées" value={gantTasks.length} sub={`sur ${tasks.length} tâche(s) total`} />
+        <Kpi label="Validé (0%)" value={gantTasks.filter(t => progressOfTask(t) <= 0 && !isDone(t)).length} tone="#64748b" />
         <Kpi label="En cours (50%)" value={gantTasks.filter(t => progressOfTask(t) > 0 && !isDone(t)).length} tone="#0284c7" />
         <Kpi label="Terminées (100%)" value={gantTasks.filter(t => isDone(t)).length} tone="#0E7A5F" />
         <Kpi label="En retard" value={gantTasks.filter(t => delayOf(t) > 0 && !isDone(t)).length} tone="#dc2626" />
-        <Kpi label="Zones / lots" value={groups.length} sub="groupés" />
       </div>
 
       <div className="bento-card overflow-hidden">

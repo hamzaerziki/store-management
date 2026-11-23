@@ -63,11 +63,14 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
 
   const canTrackExecution = ['admin', 'IT', 'MG', 'CG', 'CDG', 'DD', 'DG'].includes(user?.role);
 
+  const [supplierPage, setSupplierPage] = useState(1);
+  const SUPPLIER_PAGE_SIZE = 10;
+  useEffect(() => { setSupplierPage(1); }, [supplierId, effectiveStoreId]);
   useEffect(() => {
     setSupplierError('');
     if (!supplierId || !effectiveStoreId) { setSupplierDemands([]); return; }
     api.get('/demands', { params: { store_id: effectiveStoreId, supplier_id: supplierId } })
-      .then(r => setSupplierDemands(r.data))
+      .then(r => setSupplierDemands((r.data || []).filter(d => d.status && d.status !== 'draft')))
       .catch(e => { setSupplierDemands([]); setSupplierError(e?.message || 'Chargement impossible'); });
   }, [supplierId, effectiveStoreId]);
 
@@ -367,12 +370,24 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
         {!supplierId && <div className="mt-4 rounded-xl border border-dashed border-line bg-canvas/40 px-4 py-5 text-center text-[11px] text-muted">
           Aucun prestataire sélectionné. Choisissez un prestataire ci-dessus ou cliquez sur un prestataire dans une catégorie.
         </div>}
-        {supplierId && (
-          <div className="mt-4 overflow-x-auto">
+        {supplierId && (() => {
+          const totalPages = Math.max(1, Math.ceil(supplierDemands.length / SUPPLIER_PAGE_SIZE));
+          const page = Math.min(supplierPage, totalPages);
+          const rows = supplierDemands.slice((page-1)*SUPPLIER_PAGE_SIZE, page*SUPPLIER_PAGE_SIZE);
+          return (
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between gap-2 text-[10.5px] text-muted">
+              <span>{supplierDemands.length} demande(s) soumise(s) · page {page}/{totalPages}</span>
+              <div className="flex gap-2">
+                <button className="bento-btn !py-1 !px-2 !text-[10px]" disabled={page<=1} onClick={()=>setSupplierPage(p=>Math.max(1,p-1))}>Précédent</button>
+                <button className="bento-btn !py-1 !px-2 !text-[10px]" disabled={page>=totalPages} onClick={()=>setSupplierPage(p=>Math.min(totalPages,p+1))}>Suivant</button>
+              </div>
+            </div>
+            <div className="overflow-x-auto">
             <table className="w-full">
               <thead><tr><th className="bento-th">Demande</th><th className="bento-th">Catégorie</th><th className="bento-th">Montant HT</th><th className="bento-th">Statut</th><th className="bento-th">Date</th><th className="bento-th min-w-[150px]">Exécution</th></tr></thead>
               <tbody>
-                {supplierDemands.map(d => <tr key={d.id} className="hover:bg-canvas/60">
+                {rows.map(d => <tr key={d.id} className="hover:bg-canvas/60">
                   <td className="bento-td font-bold">{d.title}</td>
                   <td className="bento-td">{d.category_name || '—'}</td>
                   <td className="bento-td">{money(d.amount)}</td>
@@ -380,11 +395,12 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
                   <td className="bento-td">{dateFR(d.created_at)}</td>
                   <td className="bento-td"><ExecutionStatusSelect demand={d} canEdit={user?.role === "admin" || Number(d?.created_by) === Number(user?.id)} onChange={updateSupplierDemand} /></td>
                 </tr>)}
-                {supplierDemands.length === 0 && <tr><td colSpan="6" className="bento-td text-center text-muted">Aucune demande pour ce prestataire</td></tr>}
+                {rows.length === 0 && <tr><td colSpan="6" className="bento-td text-center text-muted">Aucune demande soumise pour ce prestataire</td></tr>}
               </tbody>
             </table>
-          </div>
-        )}
+            </div>
+          </div>);
+        })()}
       </section>}
 
       <Modal open={openCategory} onClose={() => setOpenCategory(false)} title="Nouvelle catégorie" wide>

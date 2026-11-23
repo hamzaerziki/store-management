@@ -129,7 +129,8 @@ export default function StoreDetail() {
   const [confirmDeleteDemand, setConfirmDeleteDemand] = useState(null);
   const [confirmFinalDecision, setConfirmFinalDecision] = useState(null);
   const [detailsTarget, setDetailsTarget] = useState(null);
-  const [showAllDemands, setShowAllDemands] = useState(false);
+  const [demandPage, setDemandPage] = useState(1);
+  const DEMAND_PAGE_SIZE = 10;
   const [supplierFilter, setSupplierFilter] = useState('');
   const { can, user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -415,7 +416,7 @@ export default function StoreDetail() {
     .filter(d => !search || `${d.title} ${d.kind}`.toLowerCase().includes(search.toLowerCase()))
     .filter(d => !supplierFilter || (d.quotes || []).some(q => String(q.supplier_id) === String(supplierFilter)))
     .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime() || Number(b.id) - Number(a.id));
-  const visibleDemands = showAllDemands ? filteredDemands : filteredDemands.slice(0, 6);
+
   const usableCategories = categories.filter(c => user?.role === 'admin' || c.owner_role === user?.role || c.owner_role === 'BOTH');
   const usableTemplates = templates.filter(t => user?.role === 'admin' || t.owner_role === user?.role);
   const filteredTemplates = usableTemplates.filter(t =>
@@ -614,11 +615,11 @@ export default function StoreDetail() {
             )}
             <div className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/75 px-3 py-2">
               <Search size={14} className="text-[#8B93A1]" />
-              <input className="w-44 bg-transparent text-[11.5px] outline-none" placeholder="Filtrer…" value={search} onChange={e => setSearch(e.target.value)} />
+              <input className="w-44 bg-transparent text-[11.5px] outline-none" placeholder="Filtrer…" value={search} onChange={e => { setSearch(e.target.value); setDemandPage(1); }} />
             </div>
             <div className="flex items-center gap-2 rounded-xl border border-white/80 bg-white/75 px-2.5 py-1.5">
               <Users size={14} className="text-[#0E7A5F]" />
-              <select className="bg-transparent text-[11px] font-semibold outline-none max-w-[170px]" value={supplierFilter} onChange={e => setSupplierFilter(e.target.value)} title="Filtrer par prestataire">
+              <select className="bg-transparent text-[11px] font-semibold outline-none max-w-[170px]" value={supplierFilter} onChange={e => { setSupplierFilter(e.target.value); setDemandPage(1); }} title="Filtrer par prestataire">
                 <option value="">Tous les prestataires</option>
                 {supplierOptions.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
@@ -636,13 +637,12 @@ export default function StoreDetail() {
           <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-3">
             <div>
               <h3 className="text-[13px] font-extrabold text-[#1E2229]">Registre compact</h3>
-              <p className="text-[10.5px] text-[#8B93A1]">Colonnes utiles uniquement · {visibleDemands.length} sur {filteredDemands.length} affichées</p>
+              <p className="text-[10.5px] text-[#8B93A1]">{filteredDemands.length} demande(s) · page {safeDemandPage}/{demandTotalPages}</p>
             </div>
-            {filteredDemands.length > 6 && (
-              <button className="bento-btn !py-1.5 !px-2.5 !text-[10px]" onClick={() => setShowAllDemands(value => !value)}>
-                {showAllDemands ? 'Réduire' : `Voir les ${filteredDemands.length - 6} autres`}
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              <button className="bento-btn !py-1.5 !px-2.5 !text-[10px]" disabled={safeDemandPage <= 1} onClick={() => setDemandPage(p => Math.max(1, p - 1))}>Précédent</button>
+              <button className="bento-btn !py-1.5 !px-2.5 !text-[10px]" disabled={safeDemandPage >= demandTotalPages} onClick={() => setDemandPage(p => Math.min(demandTotalPages, p + 1))}>Suivant</button>
+            </div>
           </div>
           <div className="px-5 pb-5 overflow-x-auto">
             {visibleDemands.length === 0 ? (
