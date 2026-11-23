@@ -15,7 +15,7 @@ function ipRank(ip) {
   return 3; // public
 }
 
-function pickIp(req) {
+export function pickIp(req) {
   const forwarded = req?.headers?.['x-forwarded-for'];
   const chain = (Array.isArray(forwarded) ? forwarded.join(',') : forwarded || '')
     .split(',').map(v => String(v).trim().replace(/^::ffff:/, '')).filter(Boolean);

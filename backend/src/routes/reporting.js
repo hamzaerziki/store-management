@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, asyncRoute, can, readScope } from '../middleware/auth.js';
 import { computeStoreProgress, storeSignal } from '../utils/progress.js';
+import { buildDemandTrend, summarizeDemandProgress } from '../utils/demand-progress.js';
 
 const router = Router();
 
@@ -89,15 +90,38 @@ async function buildSummary(req, filters) {
     // Consumed/engaged when DG approves demand: include approved demand amount.
     engagedByStore.set(store.id, Math.max(itemEngaged, poEngaged, demandEngaged));
   });
-  const stores = applyFilters(
+  const filteredStores = applyFilters(
     storeRows.rows.map(store => ({
       ...store,
       engaged: engagedByStore.get(store.id) || 0,
       computed_status: statusByStore.get(store.id),
-      progress: computeStoreProgress(itemRows.rows.filter(item => item.store_id === store.id).map(item => ({ status: item.status, estimated_budget: item.estimate }))),
+      item_progress: computeStoreProgress(itemRows.rows.filter(item => item.store_id === store.id).map(item => ({ status: item.status, estimated_budget: item.estimate }))),
     })),
     filters
   );
+  const storeIds = filteredStores.map(store => store.id);
+  const demandRows = storeIds.length
+    ? (await query(
+        `SELECT id, store_id, status, execution_status, amount, created_at, submitted_at, updated_at, execution_updated_at
+           FROM demands WHERE store_id = ANY($1::int[])`,
+        [storeIds]
+      )).rows
+    : [];
+  const demandStatsByStore = new Map();
+  demandRows.forEach(demand => {
+    const id = Number(demand.store_id);
+    const list = demandStatsByStore.get(id) || [];
+    list.push(demand);
+    demandStatsByStore.set(id, list);
+  });
+  const stores = filteredStores.map(store => {
+    const demandStats = summarizeDemandProgress(demandStatsByStore.get(store.id) || []);
+    return {
+      ...store,
+      progress: demandStats.average,
+      demand_progress: demandStats,
+    };
+  });
   const totals = stores.reduce((acc, store) => {
     acc.budget += Number(store.budget || 0);
     acc.engaged += Number(store.engaged || 0);
@@ -107,6 +131,7 @@ async function buildSummary(req, filters) {
     acc.delays += Number(store.delayed || 0);
     return acc;
   }, { budget: 0, engaged: 0, invoiced: 0, paid: 0, risks: 0, delays: 0 });
+  const demandProgressTotals = summarizeDemandProgress(demandRows);
 
   const byStore = stores.map(store => ({
     ...store,
@@ -136,20 +161,7 @@ async function buildSummary(req, filters) {
   );
   const byLot = lotRows.rows.filter(row => !filters.brand || row.brand === filters.brand);
 
-  const trendScope = await readScope(req, 'store_id', 1);
-  const trendRows = await query(
-    `SELECT to_char(date_trunc('month', updated_at), 'YYYY-MM') AS month, status, count(*)::int AS count
-     FROM items WHERE 1=1 ${trendScope.clause} GROUP BY 1,2 ORDER BY 1`,
-    trendScope.params
-  );
-  const months = [...new Set(trendRows.rows.map(row => row.month))].sort().slice(-12);
-  const statuses = [...new Set(trendRows.rows.map(row => row.status))];
-  const trend = months.map(month => {
-    const point = { month };
-    statuses.forEach(status => { point[status] = 0; });
-    trendRows.rows.filter(row => row.month === month).forEach(row => { point[row.status] = row.count; });
-    return point;
-  });
+  const trend = buildDemandTrend(demandRows);
 
   const approvedDemandsTotal = stores.reduce((sum, s) => sum + Number(demandEngagedByStore.get(s.id)?.amount || 0), 0);
   const approvedDemandsCount = stores.reduce((sum, s) => sum + Number(demandEngagedByStore.get(s.id)?.count || 0), 0);
@@ -162,14 +174,21 @@ async function buildSummary(req, filters) {
   return {
     generated_at: new Date().toISOString(),
     filters,
-    totals: { ...totals, approved_demands_amount: approvedDemandsTotal, approved_demands_count: approvedDemandsCount, stores: stores.length },
+    totals: {
+      ...totals,
+      approved_demands_amount: approvedDemandsTotal,
+      approved_demands_count: approvedDemandsCount,
+      stores: stores.length,
+      demand_progress: demandProgressTotals,
+    },
+    stores: byStore,
     by_store: byStore,
     by_brand: byBrand,
     by_city: byCity,
     by_status: byStatus,
+    status_counts: byStatus,
     by_lot: byLot,
     trend,
-    statuses,
   };
 }
 
@@ -194,10 +213,11 @@ router.get('/summary', requireAuth, can('export_reports'), asyncRoute(async (req
 
 router.get('/export', requireAuth, can('export_reports'), asyncRoute(async (req, res) => {
   const data = await buildSummary(req, filtersOf(req));
-  const header = ['Magasin', 'Enseigne', 'Ville', 'Budget', 'Engagé', 'Facturé', 'Payé', 'Risques', 'Retards', 'Avancement'];
+  const header = ['Magasin', 'Enseigne', 'Ville', 'Budget', 'Engagé', 'Facturé', 'Payé', 'Risques', 'Retards', 'Avancement', 'Demandes', 'Approuvées', 'Rejetées'];
   const lines = data.by_store.map(store => [
     store.name, store.brand || 'Safari Import', store.city, store.budget, store.engaged,
     store.invoiced, store.paid, store.risks, store.delayed, store.progress,
+    store.demand_progress?.total || 0, store.demand_progress?.approved || 0, store.demand_progress?.rejected || 0,
   ]);
   if (String(req.query.format || 'csv').toLowerCase() === 'pdf') {
     const rows = lines.map(cells => `<tr>${cells.map(cell => `<td>${String(cell ?? '')}</td>`).join('')}</tr>`).join('');

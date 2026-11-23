@@ -211,15 +211,15 @@ export default function Stores() {
         {filters.map(([k, l]) => <button key={k} onClick={() => setFilter(k)} className={`chip ${filter === k ? 'chip-active' : ''}`}>{l} <span className="opacity-60">({counts[k]})</span></button>)}
       </div>
       <ErrorBox error={error} />
-      <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className="grid md:grid-cols-2 xl:grid-cols-2 gap-5">
         {shown.map(s => {
           const image = storeImageUrl(s);
           return (
             <div key={s.id} className="card p-5 hover:-translate-y-0.5 hover:shadow-lg transition relative">
               <Link to={`/stores/${s.id}`} className="block">
                 {image && (
-                  <div className="w-full h-32 overflow-hidden rounded-xl mb-4 bg-canvas">
-                    <img src={image} alt={s.name} className="w-full h-full object-cover" style={{ transform: `translate(${Number(s.image_pos_x || 0)}px, ${Number(s.image_pos_y || 0)}px) scale(${Number(s.image_zoom || 1)})`, transformOrigin: 'center center' }} />
+                  <div className="w-full aspect-[4/3] overflow-hidden rounded-xl mb-4 bg-white border border-line/70">
+                    <img src={image} alt={s.name} className="h-full w-full object-contain p-2" />
                   </div>
                 )}
                 <div className="flex items-start justify-between"><BrandLogo key={s.id} name={s.name} /><StatusBadge status={s.computed_status} /></div>

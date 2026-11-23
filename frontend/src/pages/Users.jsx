@@ -77,8 +77,12 @@ export default function Users() {
               </div>
             </div>
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-line text-[11px]">
-              <span className={u.active ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{u.active ? '● Actif' : '● Inactif'}</span>
+              <span className={u.active ? 'text-emerald-600 font-bold' : 'text-red-600 font-bold'}>{u.active ? '✓ Actif' : '✗ Inactif'}</span>
               <span className="text-muted">Depuis {dateFR(u.created_at)}</span>
+            </div>
+            <div className="mt-2 rounded-xl bg-canvas/50 border border-line px-3 py-2 text-[10.5px] text-muted">
+              <div><b className="text-ink">Dernière IP :</b> <span className="font-mono">{u.last_login_ip || '—'}</span></div>
+              <div><b className="text-ink">Dernière connexion :</b> {u.last_login_at ? new Date(u.last_login_at).toLocaleString('fr-FR') : '—'}</div>
             </div>
             <div className="flex flex-wrap gap-2 mt-3">
               <button onClick={() => openEdit(u)} className="btn-ghost flex-1 !py-2 !text-[11px]"><UserCog size={13} /> Modifier</button>

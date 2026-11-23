@@ -14,6 +14,7 @@ import { resolveLotId } from '../utils/lots.js';
 import { classifyDevise } from '../utils/classification.js';
 import { decisionFingerprint } from '../utils/decision.js';
 import { createUpload, persistUpload } from '../utils/upload-security.js';
+import { signFileToken, verifyFileToken, checkFileTokenRateLimit } from '../utils/file-token.js';
 import { publishEvent } from '../services/notification-service.js';
 
 const roundMoney = value => Math.round(Number(value || 0) * 100) / 100;

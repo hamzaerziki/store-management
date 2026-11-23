@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useDataRefresh } from '../hooks/useDataRefresh';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, BarChart, Bar,
+  PieChart, Pie, Cell, Legend, BarChart, Bar, ComposedChart,
 } from 'recharts';
 import {
   CalendarDays, Download, Printer, RotateCcw, SlidersHorizontal, Wallet, TrendingUp,
@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { ErrorBox, money, dateFR } from '../components/ui';
+import { ErrorBox, money, dateFR, summarizeDemandProgress } from '../components/ui';
 import useSessionState from '../hooks/useSessionState';
 
 const FILTER_KEYS = ['year', 'brand', 'city', 'owner', 'store_status'];
@@ -18,10 +18,10 @@ const FILTER_LABELS = { year: 'Exercice', brand: 'Enseigne', city: 'Ville', owne
 const FILTER_ALL = { year: 'Tous les exercices', brand: 'Toutes les enseignes', city: 'Toutes les villes', owner: 'Tous les responsables', store_status: 'Tous les statuts' };
 const FILTER_OPTIONS = { year: 'years', brand: 'brands', city: 'cities', owner: 'owners', store_status: 'statuses' };
 const STATUS_LABELS = {
-  on_track: 'En bonne voie', at_risk: 'À risque', late: 'En retard', en_retard: 'En retard', ready: 'Prêt', ouvert: 'Ouvert', planning: 'Planifié',
+  on_track: 'En bonne voie', at_risk: 'À risque', late: 'En retard', en_retard: 'En retard', ready: 'Prêt', ouvert: 'Ouvert', planning: 'Planifié', cloture: 'Clôturé',
 };
 const STATUS_COLORS = {
-  on_track: '#6FD3C7', at_risk: '#F7C96B', late: '#D8A441', en_retard: '#D8A441', ready: '#16A37C', ouvert: '#0E7A5F', planning: '#7FB69A',
+  on_track: '#6FD3C7', at_risk: '#F7C96B', late: '#D8A441', en_retard: '#D8A441', ready: '#16A37C', ouvert: '#0E7A5F', planning: '#7FB69A', cloture: '#16A37C',
 };
 const CHART_COLORS = ['#16A37C', '#D8A441', '#0E7A5F', '#F7C96B', '#6FD3C7', '#7FB69A', '#E8BC63'];
 
@@ -58,19 +58,25 @@ export default function Reporting() {
     const query = new URLSearchParams(FILTER_KEYS.filter(key => filters[key]).map(key => [key, String(filters[key])])).toString();
     const suffix = query ? `?${query}` : '';
     setError('');
-    api.get(`/dashboard/global${suffix}`).then(r => {
-      setData(r.data || {});
+    api.get(`/reporting/summary${suffix}`).then(r => {
+      const payload = r.data || {};
+      setSummary(payload);
+      setData(payload);
       setGeneratedAt(new Date());
-    }).catch(setError);
-    api.get(`/reporting/summary${suffix}`).then(r => setSummary(r.data || {})).catch(() => setSummary({}));
+    }).catch(err => {
+      setError(err);
+      setSummary({});
+      setData({});
+    });
   };
 
   useEffect(() => { load(); }, [filters]);
   useDataRefresh(load, [JSON.stringify(filters)]);
 
-  const stores = data.stores || [];
-  const trend = data.trend || [];
-  const breakdown = Object.entries(data.status_counts || {})
+  const stores = data.stores || summary.stores || [];
+  const trend = summary.trend || data.trend || [];
+  const demandProgress = summary.totals?.demand_progress || summarizeDemandProgress([]);
+  const breakdown = Object.entries(summary.status_counts || data.status_counts || {})
     .filter(([, value]) => Number(value) > 0)
     .map(([key, value]) => ({ name: STATUS_LABELS[key] || key.replaceAll('_', ' '), value: Number(value) }));
   const activeFilters = FILTER_KEYS.filter(key => filters[key]);
@@ -108,7 +114,7 @@ export default function Reporting() {
     };
   }, [kpi]);
 
-  const progressRows = useMemo(() => stores.slice(0, 6).map(store => ({
+  const progressRows = useMemo(() => stores.map(store => ({
     name: store.brand || store.name,
     city: store.city || '—',
     progress: Number(store.progress) || 0,
@@ -142,6 +148,10 @@ export default function Reporting() {
       line(['Payé', money(kpi.paid)]),
       line(['Risques', kpi.risks]),
       line(['Retards', kpi.delays]),
+      line(['Demandes suivies', demandProgress.total || 0]),
+      line(['Demandes approuvées DG', demandProgress.approved || 0]),
+      line(['Demandes rejetées', demandProgress.rejected || 0]),
+      line(['Avancement moyen des demandes', `${demandProgress.average || 0} %`]),
       line([]),
       line(['Code', 'Enseigne', 'Ville', 'Responsable', 'Statut', 'Progression', 'Budget', 'Ouverture']),
       ...stores.map(store => line([
@@ -245,26 +255,36 @@ export default function Reporting() {
           <div className="mb-2 flex items-start justify-between gap-3">
             <div>
               <h2 className="text-[14px] font-extrabold text-[#1E2229]">Tendance de progression</h2>
-              <p className="text-[11px] text-[#8B93A1]">Avancement réel des projets</p>
+              <p className="text-[11px] text-[#8B93A1]">Demandes cumulées par palier : 0 %, 50 %, 100 % et rejetées · courbe = avancement moyen</p>
             </div>
-            <span className="bento-chip !py-1 !text-[10px]"><TrendingUp size={12} className="text-[#0E7A5F]" /> Progression</span>
+            <span className="bento-chip !py-1 !text-[10px]"><TrendingUp size={12} className="text-[#0E7A5F]" /> {demandProgress.total || 0} demandes</span>
           </div>
           <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={trend} margin={{ top: 10, right: 18, left: -18, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="reportBentoProgress" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#FFF2D6" stopOpacity={0.95} />
-                    <stop offset="100%" stopColor="#D8A441" stopOpacity={0.3} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9AA2AF' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#9AA2AF' }} axisLine={false} tickLine={false} unit="%" />
-                <Tooltip contentStyle={{ borderRadius: 14, border: '1px solid #F1E4C8', fontSize: 11, boxShadow: '0 10px 30px rgba(0,0,0,.04)' }} />
-                <Area type="monotone" dataKey="progress" name="Avancement réel" stroke="#0E7A5F" fill="url(#reportBentoProgress)" strokeWidth={3} dot={{ r: 4, fill: '#fff', stroke: '#0E7A5F', strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            {trend.length === 0 ? (
+              <div className="grid h-full place-items-center text-[11px] text-[#8B93A1]">Aucune demande dans ce périmètre</div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={trend} margin={{ top: 10, right: 18, left: -18, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="reportBentoProgress" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#FFF2D6" stopOpacity={0.95} />
+                      <stop offset="100%" stopColor="#D8A441" stopOpacity={0.3} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" vertical={false} />
+                  <XAxis dataKey="month" yAxisId="count" tick={{ fontSize: 10, fill: '#9AA2AF' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="count" allowDecimals={false} tick={{ fontSize: 10, fill: '#9AA2AF' }} axisLine={false} tickLine={false} />
+                  <YAxis yAxisId="percent" orientation="right" domain={[0, 100]} tick={{ fontSize: 10, fill: '#9AA2AF' }} axisLine={false} tickLine={false} unit="%" />
+                  <Tooltip contentStyle={{ borderRadius: 14, border: '1px solid #F1E4C8', fontSize: 11, boxShadow: '0 10px 30px rgba(0,0,0,.04)' }} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, color: '#727A88' }} />
+                  <Area yAxisId="percent" type="monotone" dataKey="progress" name="Avancement moyen" stroke="#0E7A5F" fill="url(#reportBentoProgress)" strokeWidth={3} dot={{ r: 4, fill: '#fff', stroke: '#0E7A5F', strokeWidth: 2 }} />
+                  <Bar yAxisId="count" dataKey="zero" stackId="progress" name="0 % / en attente" fill="#D8A441" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="count" dataKey="fifty" stackId="progress" name="50 %" fill="#6FD3C7" />
+                  <Bar yAxisId="count" dataKey="hundred" stackId="progress" name="100 %" fill="#0E7A5F" />
+                  <Bar yAxisId="count" dataKey="rejected" stackId="progress" name="Rejetées" fill="#E05A4F" radius={[4, 4, 0, 0]} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </section>
 
@@ -400,7 +420,7 @@ export default function Reporting() {
                   <td className="bento-td font-bold text-[#1E2229]">{store.code || `MG-${store.id}`}</td>
                   <td className="bento-td font-bold text-[#3F4754]">{store.brand || store.name}</td>
                   <td className="bento-td">{store.city || '—'}</td>
-                  <td className="bento-td">{store.owner || store.owner_name || '—'}</td>
+                  <td className="bento-td">{store.owner_role || store.owner || store.owner_name || '—'}</td>
                   <td className="bento-td">
                     <span className="bento-chip !py-1 !text-[10px]" style={{ background: `${STATUS_COLORS[store.computed_status] || '#7FB69A'}22`, borderColor: 'transparent', color: '#4B5563' }}>
                       {STATUS_LABELS[store.computed_status] || store.computed_status || '—'}

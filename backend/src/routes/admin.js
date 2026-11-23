@@ -43,7 +43,7 @@ async function assertDeactivationAllowed(id) {
 
 router.get('/users', requireAuth, can('manage_users'), asyncRoute(async (req, res) => {
   const where = req.query.active === 'true' ? 'WHERE active=true' : '';
-  const r = await query(`SELECT id,name,email,role,department,active,created_at FROM users ${where} ORDER BY id`);
+  const r = await query(`SELECT id,name,email,role,department,active,last_login_ip,last_login_at,created_at FROM users ${where} ORDER BY id`);
   res.json(r.rows);
 }));
 

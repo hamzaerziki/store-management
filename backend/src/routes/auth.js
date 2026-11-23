@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from '../config.js';
 import { query } from '../db.js';
 import { requireAuth, requireRole, asyncRoute, USER_ROLES } from '../middleware/auth.js';
-import { audit } from '../utils/audit.js';
+import { audit, pickIp } from '../utils/audit.js';
 
 const router = Router();
 
@@ -46,8 +46,11 @@ router.post('/login', loginLimiter, asyncRoute(async (req, res) => {
     await audit(req, 'LOGIN_FAILED', 'user', null, { email });
     return res.status(401).json({ error: 'Identifiants invalides' });
   }
+  const loginIp = pickIp(req);
+  const loginUa = String(req.headers['user-agent'] || '').slice(0, 500) || null;
+  await query('UPDATE users SET last_login_ip=$1, last_login_at=NOW(), last_login_user_agent=$2 WHERE id=$3', [loginIp, loginUa, user.id]).catch(e => console.error('login ip update error:', e.message));
   const token = signToken(user);
-  await audit(req, 'LOGIN_SUCCESS', 'user', user.id, { email: user.email });
+  await audit(req, 'LOGIN_SUCCESS', 'user', user.id, { email: user.email, ip: loginIp });
   res.json({
     token,
     user: { id: user.id, name: user.name, email: user.email, role: user.role, must_change_password: !!user.must_change_password },
@@ -55,7 +58,7 @@ router.post('/login', loginLimiter, asyncRoute(async (req, res) => {
 }));
 
 router.get('/me', requireAuth, asyncRoute(async (req, res) => {
-  const r = await query('SELECT id,name,email,role,department,active,must_change_password,created_at FROM users WHERE id = $1', [req.user.id]);
+  const r = await query('SELECT id,name,email,role,department,active,must_change_password,last_login_ip,last_login_at,created_at FROM users WHERE id = $1', [req.user.id]);
   if (!r.rows[0]) return res.status(404).json({ error: 'Utilisateur introuvable' });
   res.json(r.rows[0]);
 }));

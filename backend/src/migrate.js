@@ -54,6 +54,7 @@ try {
     await run('38-remove-default-demo-users.sql');
     await run('39-user-must-change-password.sql');
     await run('40-budget-branches.sql');
+    await run('41-user-login-ip.sql');
   } else {
     await run('03-quote-extraction.sql');
     await run('04-service-items.sql');
@@ -93,6 +94,7 @@ try {
     await run('38-remove-default-demo-users.sql');
     await run('39-user-must-change-password.sql');
     await run('40-budget-branches.sql');
+    await run('41-user-login-ip.sql');
     console.log('Schema already present ? migrations applied.');
   }
 } catch (e) {

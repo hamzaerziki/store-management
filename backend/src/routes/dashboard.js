@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { query } from '../db.js';
 import { requireAuth, asyncRoute, readScope } from '../middleware/auth.js';;
 import { computeStoreProgress, storeSignal, progressOf, STATUS_LABELS } from '../utils/progress.js';
+import { buildDemandTrend, summarizeDemandProgress } from '../utils/demand-progress.js';
 
 const router = Router();
 
@@ -153,9 +154,14 @@ router.get('/global', requireAuth, asyncRoute(async (req, res) => {
   const alerts = (statusCounts.at_risk || 0) + (statusCounts.late || 0) + (statusCounts.en_retard || 0);
   const scopeStoreIds = stores.map(store => store.id);
 
-  const [demandStatusRows, pendingDemandRows, demandAgingRows, riskRows, riskCountRows, lateTaskRows, lateTaskCountRows, countRows, autoRiskRows, budgetByStoreRows] = await Promise.all([
+  const [demandStatusRows, demandTrendRows, pendingDemandRows, demandAgingRows, riskRows, riskCountRows, lateTaskRows, lateTaskCountRows, countRows, autoRiskRows, budgetByStoreRows] = await Promise.all([
     query(
       `SELECT status, count(*)::int AS count FROM demands WHERE store_id = ANY($1::int[]) GROUP BY status`,
+      [scopeStoreIds]
+    ),
+    query(
+      `SELECT id, store_id, status, execution_status, amount, created_at, submitted_at, updated_at, execution_updated_at
+         FROM demands WHERE store_id = ANY($1::int[])`,
       [scopeStoreIds]
     ),
     query(
@@ -353,30 +359,9 @@ router.get('/global', requireAuth, asyncRoute(async (req, res) => {
     .map(([key, label]) => ({ key, label, count: statusTotals[key] || 0 }))
     .filter(entry => entry.count > 0);
 
-  const formatter = new Intl.DateTimeFormat('fr-FR', { month: 'short' });
-  const trend = Array.from({ length: 7 }, (_, index) => {
-    const month = new Date();
-    month.setDate(1);
-    month.setHours(23, 59, 59, 999);
-    month.setMonth(month.getMonth() - 6 + index);
-    const rows = trendItems.rows.filter(row => new Date(row.updated_at) <= month);
-    const progress = computeStoreProgress(rows.map(row => ({ status: row.status, estimated_budget: row.estimate })));
-    const byStore = new Map();
-    rows.forEach(row => {
-      const arr = byStore.get(row.store_id) || [];
-      arr.push({ status: row.status, estimated_budget: row.estimate });
-      byStore.set(row.store_id, arr);
-    });
-    const storeIds = [...byStore.keys()];
-    const target = storeIds.length
-      ? Math.round(storeIds.reduce((sum, id) => sum + computeStoreProgress(byStore.get(id) || []), 0) / storeIds.length)
-      : progress;
-    return {
-      month: formatter.format(month).replace('.', ''),
-      progress,
-      target,
-    };
-  });
+  const demandTrend = buildDemandTrend(demandTrendRows.rows);
+  const demandProgress = summarizeDemandProgress(demandTrendRows.rows);
+  const trend = demandTrend.map(point => ({ ...point, target: point.progress }));
 
   res.json({
     filters: { applied: filters },
@@ -390,6 +375,7 @@ router.get('/global', requireAuth, asyncRoute(async (req, res) => {
       estimated_total: estimatedTotal,
       demand_pending: demandPending,
       demand_status_counts: demandStatusCounts,
+      demand_progress: demandProgress,
       risks_open: manualRiskCount + detectedRisks.length,
       risks_manual: manualRiskCount,
       risks_auto: detectedRisks.length,

@@ -37,17 +37,19 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
               ELSE 'MG'
             END,
             0
-     FROM stores s
-     JOIN categories c ON c.name ~ '^[0-9]{2} — '
-     LEFT JOIN LATERAL (
-       SELECT department
-       FROM budget_category_lines b
-       WHERE b.category_id = c.id AND b.department IN ('IT','MG')
-       GROUP BY department
-       ORDER BY COUNT(*) DESC, department
-       LIMIT 1
-     ) bcl ON true
-     ON CONFLICT (store_id, category_id, department) DO NOTHING`
+      FROM stores s
+      JOIN categories c ON true
+      LEFT JOIN LATERAL (
+        SELECT department
+        FROM budget_category_lines b
+        WHERE b.category_id = c.id AND b.department IN ('IT','MG')
+        GROUP BY department
+        ORDER BY COUNT(*) DESC, department
+        LIMIT 1
+      ) bcl ON true
+      WHERE s.id=$1
+      ON CONFLICT (store_id, category_id, department) DO NOTHING`,
+    [storeId]
   );
 
   await query(`INSERT INTO budget_branches (store_id, code, label, color, position)
@@ -58,9 +60,9 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
     query(
       `WITH planned AS (
          SELECT bc.department, ROUND(SUM(bc.planned_amount), 2) AS planned_amount
-         FROM budget_categories bc
-         JOIN categories c ON c.id=bc.category_id AND c.name ~ '^[0-9]{2} — '
-         WHERE bc.store_id=$1
+          FROM budget_categories bc
+          JOIN categories c ON c.id=bc.category_id
+          WHERE bc.store_id=$1
          GROUP BY bc.department
        ),
        consumed AS (
@@ -97,9 +99,9 @@ router.get('/', requireAuth, can('view_budget'), asyncRoute(async (req, res) => 
               COALESCE(SUM(CASE WHEN d.status='approved' THEN d.amount ELSE 0 END), 0) AS used_amount,
               COUNT(DISTINCT d.id)::int AS demand_count,
               COUNT(DISTINCT CASE WHEN d.status='approved' THEN d.id END)::int AS approved_demand_count
-       FROM budget_categories bc
-       JOIN categories c ON c.id=bc.category_id AND c.name ~ '^[0-9]{2} — '
-        LEFT JOIN items i ON i.category_id=c.id AND i.store_id=bc.store_id
+        FROM budget_categories bc
+        JOIN categories c ON c.id=bc.category_id
+         LEFT JOIN items i ON i.category_id=c.id AND i.store_id=bc.store_id
         LEFT JOIN demands d ON d.item_id=i.id AND d.store_id=bc.store_id
         WHERE bc.store_id=$1
        GROUP BY c.id, c.name, c.owner_role, bc.department, bc.planned_amount

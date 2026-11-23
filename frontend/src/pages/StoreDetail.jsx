@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { useDataRefresh } from '../hooks/useDataRefresh';
 import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, Plus, FileUp, Wallet, ClipboardList, Clock3, Coins, CalendarClock, Eye, Sparkles, ListChecks, AlertTriangle, TrendingUp, Users, Filter, Gauge } from 'lucide-react';
-import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, PieChart, Pie, Cell, ComposedChart, Area, Legend } from 'recharts';
 import api from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { Card, CardHead, StatusBadge, PageHeader, Modal, Field, DecisionModal, Tabs, DecisionProof, WorkflowStrip, ExecutionStatusSelect, STATUS_LABELS_FR, money, dateFR, ConfirmDialog } from '../components/ui';
+import { Card, CardHead, StatusBadge, PageHeader, Modal, Field, DecisionModal, Tabs, DecisionProof, WorkflowStrip, ExecutionStatusSelect, STATUS_LABELS_FR, money, dateFR, ConfirmDialog, buildDemandTrend, summarizeDemandProgress } from '../components/ui';
 import { DemandDetailsModal } from '../components/DemandDetails';
 import BudgetCategories from './BudgetCategories';
 
@@ -396,9 +396,9 @@ export default function StoreDetail() {
   const demandPendingPct = storeDemands.length ? Math.round((demandPendingCount / storeDemands.length) * 100) : 0;
   const devisPct = storeDemands.length ? Math.min(100, Math.round((devisCount / storeDemands.length) * 100)) : 0;
   const openingPct = Math.max(0, Math.min(100, 100 - Number(data.days_to_opening || 0)));
-  const averageProgress = items.length
-    ? Math.round(items.reduce((sum, item) => sum + Number(item.progress || 0), 0) / items.length)
-    : Number(data.progress || 0);
+  const demandStats = summarizeDemandProgress(storeDemands);
+  const demandTrend = buildDemandTrend(storeDemands);
+  const averageProgress = demandStats.average;
   const latePlanningCount = planningTasks.filter(task => task.end_date && new Date(task.end_date) < new Date() && Number(task.progress || 0) < 100).length;
   const planningDoneCount = planningTasks.filter(task => Number(task.progress || 0) >= 100).length;
   const executionData = Object.entries(data.items_by_status || {})
@@ -520,7 +520,7 @@ export default function StoreDetail() {
             <BentoKpi label="Échéance" value={`${data.days_to_opening} j`} sub={`Ouverture ${dateFR(data.opening_date)}`} icon={CalendarClock} accent="#B8862F" badge="J-" progress={openingPct} />
             <BentoKpi label="Devis" value={devisCount} sub="dans le dossier" icon={FileUp} accent="#7FB69A" badge="PDF" progress={devisPct} />
             <BentoKpi label="Budget utilisé" value={`${budgetUsed}%`} sub={`${money(data.engaged)} engagés`} icon={Wallet} accent="#0E7A5F" badge="Suivi" progress={budgetUsed} />
-            <BentoKpi label="Avancement moyen" value={`${averageProgress}%`} sub={`${items.length} articles / missions`} icon={ListChecks} accent="#16A37C" badge="Réel" progress={averageProgress} />
+            <BentoKpi label="Avancement moyen" value={`${averageProgress}%`} sub={`${demandStats.total} demandes · ${demandStats.rejected} rejetées`} icon={ListChecks} accent="#16A37C" badge="Demandes" progress={averageProgress} />
             <BentoKpi label="Planning en retard" value={latePlanningCount} sub={`${planningTasks.length} tâches suivies`} icon={AlertTriangle} accent="#E05A4F" badge="Alerte" progress={planningTasks.length ? Math.round((latePlanningCount / planningTasks.length) * 100) : 0} />
           </div>
         </section>
@@ -561,6 +561,45 @@ export default function StoreDetail() {
                 </PieChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </section>
+
+        <section className="bento-card mb-5 overflow-hidden">
+          <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
+            <div>
+              <h3 className="text-[14px] font-extrabold text-[#1E2229]">Tendance de progression</h3>
+              <p className="text-[11px] text-[#8B93A1]">Demandes cumulées par palier : 0 %, 50 %, 100 % et rejetées · courbe = avancement moyen</p>
+            </div>
+            <span className="bento-chip !py-1 !text-[10px]"><TrendingUp size={12} className="text-[#0E7A5F]" /> {demandStats.total} demandes</span>
+          </div>
+          <div className="px-5 pb-5">
+            {demandTrend.length === 0 ? (
+              <div className="grid h-56 place-items-center text-[11px] text-[#8B93A1]">Aucune demande suivie dans ce magasin</div>
+            ) : (
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={demandTrend} margin={{ top: 10, right: 18, left: -18, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="storeDemandProgress" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#FFF2D6" stopOpacity={0.95} />
+                        <stop offset="100%" stopColor="#D8A441" stopOpacity={0.3} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,.18)" vertical={false} />
+                    <XAxis dataKey="month" yAxisId="count" tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="count" allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                    <YAxis yAxisId="percent" orientation="right" domain={[0, 100]} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} unit="%" />
+                    <Tooltip contentStyle={{ borderRadius: 14, border: '1px solid #F1E4C8', fontSize: 11 }} />
+                    <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 10, color: '#727A88' }} />
+                    <Area yAxisId="percent" type="monotone" dataKey="progress" name="Avancement moyen" stroke="#0E7A5F" fill="url(#storeDemandProgress)" strokeWidth={3} dot={{ r: 4, fill: '#fff', stroke: '#0E7A5F', strokeWidth: 2 }} />
+                    <Bar yAxisId="count" dataKey="zero" stackId="progress" name="0 % / en attente" fill="#D8A441" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="count" dataKey="fifty" stackId="progress" name="50 %" fill="#6FD3C7" />
+                    <Bar yAxisId="count" dataKey="hundred" stackId="progress" name="100 %" fill="#0E7A5F" />
+                    <Bar yAxisId="count" dataKey="rejected" stackId="progress" name="Rejetées" fill="#E05A4F" radius={[4, 4, 0, 0]} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         </section>
 
@@ -646,15 +685,12 @@ export default function StoreDetail() {
               <h3 className="text-[13px] font-extrabold text-[#1E2229]">Registre compact</h3>
               <p className="text-[10.5px] text-[#8B93A1]">{filteredDemands.length} demande(s) · page {safeDemandPage}/{demandTotalPages}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <button className="bento-btn !py-1.5 !px-2.5 !text-[10px]" disabled={safeDemandPage <= 1} onClick={() => setDemandPage(p => Math.max(1, p - 1))}>Précédent</button>
-              <button className="bento-btn !py-1.5 !px-2.5 !text-[10px]" disabled={safeDemandPage >= demandTotalPages} onClick={() => setDemandPage(p => Math.min(demandTotalPages, p + 1))}>Suivant</button>
-            </div>
           </div>
           <div className="px-5 pb-5 overflow-x-auto">
             {visibleDemands.length === 0 ? (
               <div className="py-10 text-center text-[12px] text-[#8B93A1]">Aucune demande pour ce magasin</div>
             ) : (
+              <>
               <table className="w-full">
                 <thead><tr><th className="bento-th min-w-[190px]">Demande</th><th className="bento-th">Montant HT</th><th className="bento-th min-w-[120px]">Chaîne</th><th className="bento-th min-w-[150px]">Exécution</th><th className="bento-th">Statut</th><th className="bento-th min-w-[190px]">Action</th></tr></thead>
                 <tbody>
@@ -663,7 +699,6 @@ export default function StoreDetail() {
                       <td className="bento-td">
                         <div className="text-[12px] font-bold text-[#1E2229]">{d.title}</div>
                         <div className="mt-0.5 text-[10px] text-[#8B93A1]">{d.kind === 'mission' ? 'Mission' : 'Article'}{d.deadline ? ` · ${dateFR(d.deadline)}` : ''}</div>
-                      
                         {showDept && <div className="mt-0.5 text-[10px] font-semibold text-[#0E7A5F]">{d.created_by_name || '—'}{d.created_by_department ? ` (${d.created_by_department})` : ''}</div>}
                       </td>
                       <td className="bento-td text-[11.5px] font-extrabold text-[#0E7A5F]">{money(d.amount)}</td>
@@ -688,6 +723,12 @@ export default function StoreDetail() {
                   ))}
                 </tbody>
               </table>
+              <div className="mt-4 flex items-center justify-end gap-2">
+                <span className="mr-2 text-[10.5px] text-[#8B93A1]">Page {safeDemandPage}/{demandTotalPages}</span>
+                <button className="bento-btn !py-1.5 !px-2.5 !text-[10px]" disabled={safeDemandPage <= 1} onClick={() => setDemandPage(p => Math.max(1, p - 1))}>Précédent</button>
+                <button className="bento-btn !py-1.5 !px-2.5 !text-[10px]" disabled={safeDemandPage >= demandTotalPages} onClick={() => setDemandPage(p => Math.min(demandTotalPages, p + 1))}>Suivant</button>
+              </div>
+              </>
             )}
           </div>
         </div>

@@ -105,7 +105,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
   const selectedLines = (data?.lines || []).filter(l => String(l.category_id) === String(selected));
 
   const totals = useMemo(() => {
-    const planned = (data?.categories || []).reduce((sum, c) => sum + Number(c.planned_amount || 0), 0);
+    const planned = Number(data?.total_planned ?? (data?.categories || []).reduce((sum, c) => sum + Number(c.planned_amount || 0), 0));
     const used = departmentRows.reduce((sum, d) => sum + Number(d.used_amount || 0), 0);
     const allPlanned = departmentRows.reduce((sum, d) => sum + Number(d.planned_amount || 0), 0);
     return {
@@ -162,7 +162,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
       {!embedded && <PageHeader
         eyebrow="Budget"
         title="Budget par catégorie"
-        subtitle="Magasin → IT / MG → catégories → articles. La consommation est comptée après validation DG ; les demandes rejetées n'impactent pas le budget."
+        subtitle="Magasin → IT / MG → catégories → articles. Non réparti = budget − prévu catégories ; une valeur négative signale un dépassement de l’enveloppe. La consommation est comptée après validation DG."
         actions={can('manage_catalog') && <button className="bento-btn bento-btn-primary" onClick={() => setOpenCategory(true)}><Plus size={15} /> Nouvelle catégorie</button>}
       />}
 
@@ -195,7 +195,7 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
             <Metric icon={Wallet} label="Budget magasin" value={money(totals.storeBudget)} />
             <Metric icon={ClipboardList} label="Prévu catégories" value={money(totals.planned)} tone="#B8862F" />
             <Metric icon={TrendingUp} label="Consommé" value={money(totals.used)} />
-            <Metric icon={CircleDollarSign} label="Non réparti" value={money(totals.unallocated)} danger={totals.unallocated < 0} />
+            <Metric icon={CircleDollarSign} label="Non réparti / dépassement" value={money(totals.unallocated)} danger={totals.unallocated < 0} />
           </div>
         </div>
         <div className="bento-track mt-4"><span style={{ width: `${totals.planningPct}%` }} /></div>
@@ -376,12 +376,8 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
           const rows = supplierDemands.slice((page-1)*SUPPLIER_PAGE_SIZE, page*SUPPLIER_PAGE_SIZE);
           return (
           <div className="mt-4">
-            <div className="mb-2 flex items-center justify-between gap-2 text-[10.5px] text-muted">
+            <div className="mb-2 text-[10.5px] text-muted">
               <span>{supplierDemands.length} demande(s) soumise(s) · page {page}/{totalPages}</span>
-              <div className="flex gap-2">
-                <button className="bento-btn !py-1 !px-2 !text-[10px]" disabled={page<=1} onClick={()=>setSupplierPage(p=>Math.max(1,p-1))}>Précédent</button>
-                <button className="bento-btn !py-1 !px-2 !text-[10px]" disabled={page>=totalPages} onClick={()=>setSupplierPage(p=>Math.min(totalPages,p+1))}>Suivant</button>
-              </div>
             </div>
             <div className="overflow-x-auto">
             <table className="w-full">
@@ -398,6 +394,11 @@ export default function BudgetCategories({ embedded = false, fixedStoreId = null
                 {rows.length === 0 && <tr><td colSpan="6" className="bento-td text-center text-muted">Aucune demande soumise pour ce prestataire</td></tr>}
               </tbody>
             </table>
+            </div>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <span className="mr-2 text-[10.5px] text-muted">Page {page}/{totalPages}</span>
+              <button className="bento-btn !py-1 !px-2 !text-[10px]" disabled={page<=1} onClick={()=>setSupplierPage(p=>Math.max(1,p-1))}>Précédent</button>
+              <button className="bento-btn !py-1 !px-2 !text-[10px]" disabled={page>=totalPages} onClick={()=>setSupplierPage(p=>Math.min(totalPages,p+1))}>Suivant</button>
             </div>
           </div>);
         })()}
