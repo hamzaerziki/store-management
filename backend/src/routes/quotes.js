@@ -83,9 +83,7 @@ function isPdf(file) {
 }
 
 function quoteScope(req) {
-  const role = req.user?.role;
-  if (role === 'IT') return { clause: "AND COALESCE(i.owner_role, d.owner_role) = 'IT'", params: [] };
-  if (['MG', 'RMG'].includes(role)) return { clause: "AND COALESCE(i.owner_role, d.owner_role) IN ('MG','RMG')", params: [] };
+  // Visibilité devis: contrôlée par affectation/readScope, pas par owner_role
   return { clause: '', params: [] };
 }
 
